@@ -57,8 +57,8 @@ bustago/
 | 이름 | 역할 | GitHub |
 |------|------|--------|
 | 류훈민 | 팀장 / 프로젝트 총괄 | [@HUNMINRYU](https://github.com/HUNMINRYU) |
-| 간볼딧글 | 부팀장 / 문서화 | [@ganbolditgl](https://github.com/ganbolditgl) |
-| 박건우 | 백엔드 / DB | [@Geonwoopark38](https://github.com/Geonwoopark38) |
+| 박건우 | 부팀장 / 문서화 | [@ganbolditgl](https://github.com/ganbolditgl) |
+| 이트겔 | 백엔드 / DB | [@Geonwoopark38](https://github.com/Geonwoopark38) |
 | 이건영 | 프론트엔드 | [@Leekunyoung-eng](https://github.com/Leekunyoung-eng) |
 
 ---
