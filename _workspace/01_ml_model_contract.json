@@ -1,0 +1,96 @@
+{
+  "contract_version": "1.0",
+  "model_name": "bustago_rf_congestion",
+  "model_type": "RandomForestClassifier",
+  "model_path": "ml/models/rf_model.pkl",
+  "description": "서울시 버스 정류장 혼잡도 예측 모델 (4단계 분류)",
+
+  "predict_function": {
+    "module": "ml.models.predict",
+    "function": "predict_congestion",
+    "signature": "predict_congestion(features: dict, model_path: str = None) -> dict"
+  },
+
+  "predict_batch_function": {
+    "module": "ml.models.predict",
+    "function": "predict_batch",
+    "signature": "predict_batch(features_list: list[dict], model_path: str = None) -> list[dict]"
+  },
+
+  "input_schema": {
+    "type": "object",
+    "required": ["hour", "weekday", "weather", "temperature", "rain", "prev_boarding", "prev_alighting", "route_count", "boarding", "alighting"],
+    "properties": {
+      "hour":            {"type": "integer", "min": 0, "max": 23, "description": "시간대 (0~23)"},
+      "weekday":         {"type": "integer", "min": 0, "max": 6,  "description": "요일 (0=월 ~ 6=일)"},
+      "weather":         {"type": "integer", "min": 0, "max": 3,  "description": "날씨 (0=맑음, 1=흐림, 2=비, 3=눈)"},
+      "temperature":     {"type": "number",                        "description": "기온 (섭씨)"},
+      "rain":            {"type": "integer", "min": 0, "max": 1,  "description": "강수 여부 (0=없음, 1=있음)"},
+      "prev_boarding":   {"type": "integer", "min": 0,             "description": "직전 시간대 승차 인원"},
+      "prev_alighting":  {"type": "integer", "min": 0,             "description": "직전 시간대 하차 인원"},
+      "route_count":     {"type": "integer", "min": 1,             "description": "정류장 경유 노선 수"},
+      "boarding":        {"type": "integer", "min": 0,             "description": "현재 시간대 승차 인원"},
+      "alighting":       {"type": "integer", "min": 0,             "description": "현재 시간대 하차 인원"}
+    }
+  },
+
+  "input_example": {
+    "hour": 8,
+    "weekday": 1,
+    "weather": 0,
+    "temperature": 20.0,
+    "rain": 0,
+    "prev_boarding": 50,
+    "prev_alighting": 30,
+    "route_count": 12,
+    "boarding": 80,
+    "alighting": 45
+  },
+
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "level":         {"type": "integer", "min": 0, "max": 3, "description": "혼잡도 등급 (0~3)"},
+      "label":         {"type": "string", "enum": ["여유", "보통", "혼잡", "매우혼잡"], "description": "혼잡도 라벨"},
+      "probabilities": {"type": "array", "items": {"type": "number"}, "length": 4, "description": "각 등급 확률 [여유, 보통, 혼잡, 매우혼잡]"}
+    }
+  },
+
+  "output_example": {
+    "level": 2,
+    "label": "혼잡",
+    "probabilities": [0.1, 0.2, 0.5, 0.2]
+  },
+
+  "label_map": {
+    "0": "여유",
+    "1": "보통",
+    "2": "혼잡",
+    "3": "매우혼잡"
+  },
+
+  "feature_cols_order": [
+    "hour", "weekday", "weather", "temperature", "rain",
+    "prev_boarding", "prev_alighting", "route_count",
+    "boarding", "alighting"
+  ],
+
+  "training": {
+    "script": "ml/models/train_rf.py",
+    "data_source": "data/features/train_features.csv",
+    "hyperparameters": {
+      "n_estimators": 100,
+      "random_state": 42
+    },
+    "test_size": 0.2,
+    "cross_validation": "5-fold"
+  },
+
+  "dependencies": {
+    "python": ">=3.8",
+    "scikit-learn": ">=1.0",
+    "joblib": ">=1.0",
+    "numpy": ">=1.20",
+    "pandas": ">=1.3"
+  }
+}

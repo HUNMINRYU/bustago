@@ -40,8 +40,7 @@
 ### AI / ML
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![RandomForest](https://img.shields.io/badge/Random%20Forest-228B22?style=flat)
-![YOLOv8](https://img.shields.io/badge/YOLOv8-00FFFF?style=flat)
-![LSTM](https://img.shields.io/badge/LSTM-FF6F00?style=flat)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikitlearn&logoColor=white)
 
 ### Backend
 ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white)
@@ -64,18 +63,26 @@
 ## 📁 폴더 구조
 ```
 bustago/
-├── backend/                # Flask REST API, MySQL DB, 공공 API 연동
+├── backend/                # Flask REST API, MySQL/SQLite DB, 공공 API 연동
 ├── frontend/               # 학생 PWA + 운영자 PC 대시보드
-├── ml/                     # Random Forest 예측, YOLOv8 시연 데모
-├── hardware/               # Raspberry Pi 제어, Pi Camera, 디스플레이
+│   ├── student/            #   학생용 모바일 PWA
+│   ├── admin/              #   운영자 PC 대시보드 (Chart.js, Leaflet.js)
+│   └── shared/             #   공용 API 래퍼
+├── ml/                     # Random Forest 혼잡도 예측 파이프라인
+│   ├── data_collection/    #   데이터 수집 (혼잡도, 승하차, 기상)
+│   ├── preprocessing/      #   전처리 + Feature 결합
+│   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB)
+├── hardware/               # Raspberry Pi 제어 (미구현 — 향후 연동 예정)
 ├── docs/                   # 프로젝트 산출물
+│   ├── 00_하네스설계/      #   AI 에이전트 팀 하네스 아키텍처
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
 │   ├── 02_설계/            #   아키텍처, DB설계, 화면설계
-│   ├── 03_구축/            #   (생략)
-│   ├── 04_테스트/          #   (생략)
-│   ├── 05_배포/            #   (생략)
-│   ├── 06_조사데이터/      #   설문결과, 카운팅 데이터, EDA
+│   ├── 03_구축/            #   하네스 실행 결과, GStack 역할 구조
+│   ├── 04_테스트/          #   (예정)
+│   ├── 05_배포/            #   (예정)
+│   ├── 06_조사데이터/      #   설문결과, EDA 분석
 │   └── 발표자료/           #   PPT, 대본, 포스터
+├── research_log.txt        # ML Autoresearch 12회 반복 실험 로그
 └── README.md
 ```
 
@@ -83,15 +90,15 @@ bustago/
 
 ## 📊 데이터 소스
 
-| 데이터 | 출처 | 용도 |
-|--------|------|------|
-| 버스도착정보 (차내혼잡도) | 서울시 공공데이터포털 API | 결합 모델 설계·검증 |
-| 승하차 이력 | 서울 열린데이터광장 | 정류장 혼잡 패턴 분석 |
-| 시내버스 승하차 인원 | 광주시 공공데이터포털 | 시내버스 모델 학습 |
-| 셔틀 운행 기록 | 컴온버스 / 학생지원팀 | 셔틀 만차 패턴 학습 |
-| 기상 데이터 | 기상청 API | 날씨 변수 반영 |
-| 현장 카운팅 | 직접 수집 (2곳 × 2주) | Ground Truth |
-| 학생 설문 | 구글폼 (N≥50) | 필요성 검증 + 이용 패턴 |
+| 데이터 | 출처 | 용도 | 상태 |
+|--------|------|------|------|
+| 버스도착정보 (차내혼잡도) | 서울시 공공데이터포털 API | 결합 모델 설계·검증 (1단계) | ✅ 수집 완료 |
+| 승하차 이력 | 서울 열린데이터광장 | 정류장 혼잡 패턴 분석 (1단계) | ✅ 수집 완료 |
+| 기상 데이터 | 기상청 API | 날씨 변수 반영 | ✅ 수집 완료 |
+| 학생 설문 | 구글폼 (N≥50) | 필요성 검증 + 이용 패턴 | ✅ 완료 |
+| 시내버스 승하차 인원 | 광주시 공공데이터포털 | 시내버스 모델 학습 (2-3단계) | 예정 |
+| 셔틀 운행 기록 | 컴온버스 / 학생지원팀 | 셔틀 만차 패턴 학습 (2단계) | 예정 |
+| 현장 카운팅 | 직접 수집 (2곳 × 2주) | Ground Truth (2-3단계) | 예정 |
 
 ---
 
@@ -99,7 +106,7 @@ bustago/
 
 | 이름 | 역할 | 담당 | GitHub |
 |------|------|------|--------|
-| 류훈민 | 팀장 | AI 모델 설계, 공공데이터 분석, YOLOv8 데모, GitHub 관리 | [@HUNMINRYU](https://github.com/HUNMINRYU) |
+| 류훈민 | 팀장 | AI 모델 설계, 공공데이터 분석, GitHub 관리 | [@HUNMINRYU](https://github.com/HUNMINRYU) |
 | 박건우 | 부팀장 | 현장 카운팅, 설문조사, 문서화, Padlet 관리 | [@ganbolditgl](https://github.com/ganbolditgl) |
 | 이트겔 | 백엔드 | Flask API, MySQL DB, 서울시/광주시/기상청 API 연동 | [@Geonwoopark38](https://github.com/Geonwoopark38) |
 | 이건영 | 프론트엔드 | 학생 PWA, 운영자 대시보드, Figma 화면설계 | [@Leekunyoung-eng](https://github.com/Leekunyoung-eng) |
@@ -125,16 +132,16 @@ python app.py
 
 ### 3. 프론트엔드
 ```bash
-cd frontend
-# index.html을 브라우저에서 열거나 라이브 서버 사용
+# 학생 PWA: frontend/student/index.html 을 브라우저에서 열거나 라이브 서버 사용
+# 운영자 대시보드: frontend/admin/index.html
 ```
 
 ### 4. ML 모델
 ```bash
 cd ml
-pip install -r requirements.txt
-python predict.py        # Random Forest 예측
-python yolo_demo.py      # YOLOv8 시연 데모
+pip install -r ../backend/requirements.txt  # 공용 의존성
+python models/train_rf.py   # Random Forest 학습 (CV 0.9962, 0.2MB)
+python models/predict.py    # 혼잡도 예측 테스트
 ```
 
 ---

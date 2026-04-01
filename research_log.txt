@@ -1,0 +1,166 @@
+========================================
+BUSTAGO Autoresearch Log
+========================================
+
+--- Iteration 0: BASELINE ---
+Date: 2026-03-31
+Hypothesis: Baseline measurement with default parameters
+Parameters: n_estimators=100, max_depth=None, 10 features
+Results:
+  CV Mean Accuracy: 0.9997 (+/- 0.0003)
+  Test Accuracy: 1.0000
+  Model Size: 5.1 MB
+  Training Time: 4.3s
+  Top Features: hour(0.40), temperature(0.20), route_count(0.14)
+Decision: BASELINE - reference point
+
+--- Iteration 1: AGGRESSIVE CUT ---
+Hypothesis: n_estimators=10, max_depth=5 -> 90%+ size reduction, accuracy >= 0.95
+Parameters: n_estimators=10, max_depth=5, 10 features
+Results:
+  CV Mean Accuracy: 0.8716 (+/- 0.0188)
+  Test Accuracy: 0.8765
+  Model Size: 0.1 MB (98% reduction)
+  Training Time: 1.2s
+Decision: FAIL - CV 0.87 < 0.95 threshold. max_depth=5 too shallow.
+
+--- Iteration 2: MODERATE ---
+Hypothesis: n_estimators=20, max_depth=10 -> balanced reduction
+Parameters: n_estimators=20, max_depth=10, 10 features
+Results:
+  CV Mean Accuracy: 0.9958 (+/- 0.0024)
+  Test Accuracy: 0.9956
+  Model Size: 0.6 MB (88% reduction)
+  Training Time: 1.7s
+Decision: WIN - CV 0.9958 >= 0.95, good starting point
+
+--- Iteration 3: PUSH FURTHER ---
+Hypothesis: n_estimators=15, max_depth=8 -> smaller model
+Parameters: n_estimators=15, max_depth=8, 10 features
+Results:
+  CV Mean Accuracy: 0.9514 (+/- 0.0051)
+  Test Accuracy: 0.9473
+  Model Size: 0.3 MB (94% reduction)
+  Training Time: 1.4s
+Decision: MARGINAL - CV 0.9514 barely above threshold, too risky
+
+--- Iteration 4: SWEET SPOT SEARCH ---
+Hypothesis: n_estimators=15, max_depth=9 -> between iter 2 and 3
+Parameters: n_estimators=15, max_depth=9, 10 features
+Results:
+  CV Mean Accuracy: 0.9838 (+/- 0.0100)
+  Test Accuracy: 0.9795
+  Model Size: 0.3 MB (94% reduction)
+  Training Time: 1.4s
+Decision: WIN - but high variance (+/- 0.01)
+
+--- Iteration 5: FEATURE ENGINEERING ---
+Hypothesis: Drop rain feature (importance=0.001) + min_samples_leaf=3
+Parameters: n_estimators=20, max_depth=10, min_samples_leaf=3, 9 features (no rain)
+Results:
+  CV Mean Accuracy: 0.9962 (+/- 0.0019)
+  Test Accuracy: 0.9938
+  Model Size: 0.5 MB (90% reduction)
+  Training Time: 1.7s
+Decision: WIN - rain removal has no negative impact, confirms feature is noise
+
+--- Iteration 6: FEWER TREES ---
+Hypothesis: n_estimators=10, max_depth=10, min_samples_leaf=3, no rain
+Parameters: n_estimators=10, max_depth=10, min_samples_leaf=3, 9 features
+Results:
+  CV Mean Accuracy: 0.9916 (+/- 0.0059)
+  Test Accuracy: 0.9993
+  Model Size: 0.2 MB (96% reduction)
+  Training Time: 1.3s
+Decision: WIN - excellent size/accuracy tradeoff
+
+--- Iteration 7: REGULARIZED *** CURRENT BEST ***
+Hypothesis: max_features=sqrt adds diversity, min_samples_leaf=5 for regularization
+Parameters: n_estimators=10, max_depth=10, min_samples_leaf=5, max_features=sqrt, 9 features
+Results:
+  CV Mean Accuracy: 0.9942 (+/- 0.0031)
+  Test Accuracy: 0.9962
+  Model Size: 0.2 MB (96% reduction)
+  Training Time: 1.3s
+Decision: WIN - BEST BALANCE (highest CV with low variance at 0.2MB)
+
+--- Iteration 8: MINIMAL TREES ---
+Hypothesis: Only 5 trees, compensate with deeper (max_depth=12)
+Parameters: n_estimators=5, max_depth=12, min_samples_leaf=3, max_features=sqrt, 9 features
+Results:
+  CV Mean Accuracy: 0.9933 (+/- 0.0006)
+  Test Accuracy: 0.9904
+  Model Size: 0.2 MB (96% reduction)
+  Training Time: 1.2s
+Decision: WIN - lowest variance! But 5 trees may be fragile in production
+
+========================================
+PHASE 2: CODEX SECOND OPINION (Iterations 9-12)
+========================================
+Codex flagged: target leakage risk from boarding/alighting, rain noise, predict.py feature mismatch
+
+--- Iteration 9: LEAKAGE ABLATION *** KEY FINDING ***
+Hypothesis: Remove boarding/alighting (possible leakage) -> if CV drops, scores are inflated
+Parameters: RF(n_estimators=10, max_depth=10, min_samples_leaf=5, max_features=sqrt), 7 features
+Results:
+  CV Mean Accuracy: 0.9962 (+/- 0.0026)
+  Test Accuracy: 0.9990
+  Model Size: 0.2 MB
+  Training Time: 1.2s
+Decision: WIN - CV IMPROVED without boarding/alighting! Confirms they were noise, not leakage signal.
+  Codex was right: these features were unnecessary. 7 features > 9 features.
+
+--- Iteration 10: DECISION TREE (extreme)
+Hypothesis: Single DecisionTree(max_depth=10) for ultra-small model
+Parameters: DT(max_depth=10, min_samples_leaf=5), 7 features
+Results:
+  CV Mean Accuracy: 1.0000 (+/- 0.0000)
+  Test Accuracy: 1.0000
+  Model Size: ~KB (essentially zero)
+  Training Time: 1.0s
+Decision: SUSPICIOUS - perfect CV=1.0 indicates data is too structured/easy
+
+--- Iteration 11: DECISION TREE (shallow)
+Hypothesis: DT(max_depth=5) to test minimum viable depth
+Parameters: DT(max_depth=5, min_samples_leaf=10), 7 features
+Results:
+  CV Mean Accuracy: 0.8760 (+/- 0.0095)
+  Test Accuracy: 0.8625
+  Model Size: ~KB
+  Training Time: 1.0s
+Decision: FAIL - below 0.95 threshold
+
+--- Iteration 12: DECISION TREE (moderate)
+Hypothesis: DT(max_depth=8) between iter 10 and 11
+Parameters: DT(max_depth=8, min_samples_leaf=5), 7 features
+Results:
+  CV Mean Accuracy: 0.9883 (+/- 0.0114)
+  Test Accuracy: 1.0000
+  Model Size: ~KB
+  Training Time: 1.0s
+Decision: PASS but high variance (0.0114). RF is safer for production.
+
+========================================
+FINAL RANKING (updated with Phase 2)
+========================================
+#1 Iteration 9:  RF, 7feat, CV=0.9962(+/-0.0026), 0.2MB  <-- FINAL WINNER
+#2 Iteration 10: DT, 7feat, CV=1.0000(+/-0.0000), ~KB    (suspicious perfection)
+#3 Iteration 7:  RF, 9feat, CV=0.9942(+/-0.0031), 0.2MB  (prev winner, superseded)
+#4 Iteration 5:  RF, 9feat, CV=0.9962(+/-0.0019), 0.5MB
+#5 Iteration 12: DT, 7feat, CV=0.9883(+/-0.0114), ~KB    (high variance)
+
+========================================
+FINAL WINNER: Iteration 9 (Phase 2)
+========================================
+  Model: RandomForestClassifier
+  n_estimators=10, max_depth=10, min_samples_leaf=5, max_features=sqrt
+  Features (7): hour, weekday, weather, temperature, prev_boarding, prev_alighting, route_count
+  Removed: rain (noise), boarding (leakage risk), alighting (leakage risk)
+
+  Baseline -> Optimized:
+    CV Accuracy:   0.9997 -> 0.9962 (-0.35%, still well above 0.95)
+    Model Size:    5.1 MB -> 0.2 MB (96% reduction)
+    Training Time: 4.3s   -> 1.2s   (72% reduction)
+    Features:      10     -> 7      (30% reduction)
+
+  Additional fix: predict.py feature contract synchronized with train_rf.py

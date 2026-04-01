@@ -37,3 +37,15 @@ data/
 *.h5
 *.pt
 *.pth
+
+# gstack (AI agent skills)
+.agents/
+
+# Codex plugin
+.codex
+
+# DB files
+*.db
+
+# Stray pip artifacts
+=*

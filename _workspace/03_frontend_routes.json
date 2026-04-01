@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "routes": [
+    {
+      "path": "frontend/student/index.html",
+      "name": "학생 PWA - 메인",
+      "description": "정류장 선택, 혼잡도 표시, 탑승 추천, 시간대별 예측",
+      "type": "pwa",
+      "target": "mobile",
+      "api_endpoints": ["/api/predict"]
+    },
+    {
+      "path": "frontend/admin/index.html",
+      "name": "운영자 대시보드",
+      "description": "시간대별 혼잡도 추이 차트, 정류장 지도, 노선별 통계 테이블",
+      "type": "dashboard",
+      "target": "pc",
+      "api_endpoints": ["/api/stats", "/api/stations"]
+    }
+  ],
+  "shared_modules": [
+    {
+      "path": "frontend/shared/api.js",
+      "description": "API 호출 래퍼 (fetchAPI, fetchPredict, fetchStats, fetchStations, fetchWeather)",
+      "api_base": "http://localhost:5000/api"
+    }
+  ],
+  "pwa_assets": {
+    "manifest": "frontend/student/manifest.json",
+    "service_worker": "frontend/student/service-worker.js"
+  }
+}
