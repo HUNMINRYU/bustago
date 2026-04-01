@@ -1,0 +1,269 @@
+/* BUSTAGO Student PWA - Mobile First */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: #1976D2;
+  --primary-dark: #1565C0;
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --text: #212121;
+  --text-secondary: #757575;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --radius: 12px;
+  --congestion-0: #4CAF50;
+  --congestion-1: #FFC107;
+  --congestion-2: #FF9800;
+  --congestion-3: #F44336;
+  --congestion-bg-0: #E8F5E9;
+  --congestion-bg-1: #FFF8E1;
+  --congestion-bg-2: #FFF3E0;
+  --congestion-bg-3: #FFEBEE;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.app-header {
+  background: var(--primary);
+  color: white;
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.app-header .subtitle {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+/* Main */
+.app-main {
+  flex: 1;
+  padding: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Card */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+/* Station Selector */
+.station-selector label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.station-selector select {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid #E0E0E0;
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23757575' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  cursor: pointer;
+}
+
+.station-selector select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Congestion Display */
+.congestion-display {
+  text-align: center;
+}
+
+.congestion-display h2 {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.congestion-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.congestion-circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease;
+}
+
+.congestion-icon {
+  font-size: 40px;
+  margin-bottom: 4px;
+}
+
+.congestion-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+
+.congestion-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Recommendation */
+.recommendation h2 {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.recommendation-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.recommendation-card.board {
+  background: var(--congestion-bg-0);
+  color: var(--congestion-0);
+}
+
+.recommendation-card.wait {
+  background: var(--congestion-bg-3);
+  color: var(--congestion-3);
+}
+
+.recommendation-icon {
+  font-size: 28px;
+}
+
+/* Forecast Bars */
+.forecast h2 {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.forecast-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 160px;
+  padding-top: 8px;
+}
+
+.forecast-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.forecast-bar {
+  width: 100%;
+  min-height: 8px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease, background-color 0.3s ease;
+}
+
+.forecast-bar-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+/* Utility */
+.hidden {
+  display: none;
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.loading::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+  border: 3px solid #E0E0E0;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Responsive - Tablet+ */
+@media (min-width: 600px) {
+  .app-main {
+    padding: 24px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+
+  .congestion-circle {
+    width: 160px;
+    height: 160px;
+  }
+}
