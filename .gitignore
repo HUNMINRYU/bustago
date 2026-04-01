@@ -38,11 +38,13 @@ data/
 *.pt
 *.pth
 
-# gstack (AI agent skills)
-.agents/
-
-# Codex plugin
+# AI Tools (Claude Code, Codex, GStack)
+.claude/
 .codex
+.agents/
+_workspace/
+program.md
+research_log.txt
 
 # DB files
 *.db
