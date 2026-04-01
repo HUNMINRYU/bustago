@@ -1,0 +1,17 @@
+{
+  "name": "BUSTAGO - 버스 혼잡도 예측",
+  "short_name": "BUSTAGO",
+  "description": "서울시 버스 정류장 혼잡도 예측 서비스",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#1976D2",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231976D2' width='100' height='100' rx='20'/><text y='.9em' font-size='70' x='15'>🚌</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

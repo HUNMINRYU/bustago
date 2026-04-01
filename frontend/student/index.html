@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="description" content="BUSTAGO - 버스 정류장 혼잡도 예측 서비스">
+  <title>BUSTAGO - 버스 혼잡도 예측</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>">
+</head>
+<body>
+  <header class="app-header">
+    <h1>BUSTAGO</h1>
+    <p class="subtitle">버스 정류장 혼잡도 예측</p>
+  </header>
+
+  <main class="app-main">
+    <!-- 정류장 선택 -->
+    <section class="station-selector card">
+      <label for="station-select">정류장 선택</label>
+      <select id="station-select">
+        <option value="">정류장을 선택하세요</option>
+        <!-- Populated dynamically from /api/stations -->
+      </select>
+    </section>
+
+    <!-- 현재 혼잡도 표시 -->
+    <section id="congestion-display" class="congestion-display card hidden">
+      <h2>현재 혼잡도</h2>
+      <div class="congestion-indicator">
+        <div id="congestion-circle" class="congestion-circle">
+          <span id="congestion-icon" class="congestion-icon"></span>
+          <span id="congestion-label" class="congestion-label"></span>
+        </div>
+      </div>
+      <p id="congestion-message" class="congestion-message"></p>
+    </section>
+
+    <!-- 탑승 추천 카드 -->
+    <section id="recommendation" class="recommendation card hidden">
+      <h2>탑승 추천</h2>
+      <div id="recommendation-content" class="recommendation-content">
+        <div class="recommendation-card">
+          <span class="recommendation-icon"></span>
+          <span class="recommendation-text"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 시간대별 예측 바 차트 -->
+    <section id="forecast" class="forecast card hidden">
+      <h2>시간대별 예측</h2>
+      <div class="forecast-bars" id="forecast-bars"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>&copy; 2026 BUSTAGO. 캡스톤 프로젝트</p>
+  </footer>
+
+  <script src="../shared/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

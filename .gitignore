@@ -37,3 +37,17 @@ data/
 *.h5
 *.pt
 *.pth
+
+# AI Tools (Claude Code, Codex, GStack)
+.claude/
+.codex
+.agents/
+_workspace/
+program.md
+research_log.txt
+
+# DB files
+*.db
+
+# Stray pip artifacts
+=*
