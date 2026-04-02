@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude / AI tools
+.claude/
+
+# Data (regenerated at runtime)
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Database (will be created in volume)
+*.db
+
+# Documentation (not needed in container)
+docs/
+research_log.txt
+program.md
+_workspace/

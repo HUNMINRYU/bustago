@@ -5,10 +5,10 @@
 
 ---
 
-## 🚀 전체 진행도: **97%**
+## 🚀 전체 진행도: **99%**
 
 ```text
-전체 ███████████████████░ 97%
+전체 ███████████████████░ 99%
 ```
 
 ---
@@ -116,3 +116,5 @@ Hardware  ░░░░░░░░░░░░░░░░░░░░  0%
 - [x] ~~비동기 수집 엔진 도입~~ (GSTACK Agent 1): 완료 (`asyncio.gather` 병렬수집, `asyncio.to_thread` 래핑)
 - [x] ~~운영자 대시보드 완성~~: 완료 (도넛차트, 자동갱신, 로딩UI, fitBounds)
 - [x] ~~Flask-Limiter Rate Limiting 적용~~: 완료 (predict/stats 30/min, stations 60/min, weather 30/min, 429 핸들러)
+- [x] ~~Docker 배포 환경 구축~~: 완료 (Dockerfile x2, docker-compose.yml, nginx reverse proxy)
+- [x] ~~Raspberry Pi 설계 문서~~: 완료 (BOM, 설치절차, 4주 일정, 리스크 대응)
