@@ -41,6 +41,8 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![RandomForest](https://img.shields.io/badge/Random%20Forest-228B22?style=flat)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikitlearn&logoColor=white)
+![YOLOv8](https://img.shields.io/badge/YOLOv8-00FFFF?style=flat&logo=ultralytics&logoColor=black)
+![DeepSORT](https://img.shields.io/badge/DeepSORT-FF6F61?style=flat)
 
 ### Backend
 ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white)
@@ -53,6 +55,7 @@
 ![PWA](https://img.shields.io/badge/PWA-5A0FC8?style=flat&logo=pwa&logoColor=white)
 
 ### Hardware
+![Jetson](https://img.shields.io/badge/Jetson%20Orin%20Nano-76B900?style=flat&logo=nvidia&logoColor=white)
 ![RaspberryPi](https://img.shields.io/badge/Raspberry%20Pi%204-C51A4A?style=flat&logo=raspberrypi&logoColor=white)
 
 ### Design
@@ -72,14 +75,14 @@ bustago/
 │   ├── data_collection/    #   데이터 수집 (혼잡도, 승하차, 기상)
 │   ├── preprocessing/      #   전처리 + Feature 결합
 │   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB)
-├── hardware/               # Raspberry Pi 제어 (미구현 — 향후 연동 예정)
+├── hardware/               # Jetson Orin Nano AI 카운팅 (YOLOv8 + DeepSORT + Line Crossing)
 ├── docs/                   # 프로젝트 산출물
 │   ├── 00_하네스설계/      #   AI 에이전트 팀 하네스 아키텍처
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
 │   ├── 02_설계/            #   아키텍처, DB설계, 화면설계
-│   ├── 03_구축/            #   하네스 실행 결과, GStack 역할 구조
-│   ├── 04_테스트/          #   (예정)
-│   ├── 05_배포/            #   (예정)
+│   ├── 03_구축/            #   하네스 실행 결과, GStack 역할 구조, 하드웨어 설계서 v2.0
+│   ├── 04_테스트/          #   ML Autoresearch 로그, 단위 테스트
+│   ├── 05_배포/            #   하드웨어 구매검토 보고서 v2/v3
 │   ├── 06_조사데이터/      #   설문결과, EDA 분석
 │   └── 발표자료/           #   PPT, 대본, 포스터
 ├── research_log.txt        # ML Autoresearch 12회 반복 실험 로그
@@ -142,6 +145,16 @@ cd ml
 pip install -r ../backend/requirements.txt  # 공용 의존성
 python models/train_rf.py   # Random Forest 학습 (CV 0.9962, 0.2MB)
 python models/predict.py    # 혼잡도 예측 테스트
+```
+
+### 5. AI 카운팅 (Jetson / PC 웹캠)
+```bash
+cd hardware
+pip install -r requirements.txt
+# PC 웹캠 테스트 (디버그 모드)
+python counter.py --camera 0 --model yolov8n.pt --debug
+# Jetson 배포
+python counter.py --camera 0 --model yolov8n.engine --server http://SERVER_IP/api/crowd-count
 ```
 
 ---

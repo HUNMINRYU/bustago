@@ -39,7 +39,7 @@
 | 하네스 실행 결과 | [하네스_실행결과.md](03_구축/20260330_2315_하네스_실행결과.md) | 에이전트 팀 하네스 빌드 결과 (26 PASS / 0 FAIL) |
 | GStack 역할 구조 정의 | [gstack_역할구조_정의.md](03_구축/20260330_gstack_역할구조_정의.md) | AI 스킬 자율 진화 파이프라인 역할 구조 명세 |
 | GStack 아키텍처 리뷰 | [GSTACK_REVIEW.md](GSTACK_REVIEW.md) | CEO/Eng/CSO 관점 리뷰 및 Harness 평가 지표 |
-| 하드웨어 연동 설계서 | [하드웨어_연동_설계.md](03_구축/하드웨어_연동_설계.md) | Raspberry Pi 4 + 디스플레이 현장 설치 설계 |
+| 하드웨어 연동 설계서 v2.0 | [하드웨어_연동_설계.md](03_구축/하드웨어_연동_설계.md) | **Jetson Orin Nano(AI) + Pi 4(Kiosk)** 역할 분리, DeepSORT 카운팅 설계 |
 
 ---
 

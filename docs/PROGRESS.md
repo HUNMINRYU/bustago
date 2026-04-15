@@ -1,6 +1,6 @@
 # BUSTAGO 프로젝트 진행 현황
 
-> **최종 업데이트 일시:** 2026-04-01 14:00 (KST)
+> **최종 업데이트 일시:** 2026-04-15 (KST)
 > 1차 시연: 5.21 | 최종 보고서: 6.4
 
 ---
@@ -38,7 +38,7 @@ Backend   ████████████████████ 100%
 |-----------|--------|------|------|
 | Flask 앱 (`app.py`) | 100% | ✅ 완료 | 블루프린트 라우팅 구현 및 구동 확인 |
 | DB 스키마 (`schema.sql`) | 100% | ✅ 완료 | **[26.03.30]** `db.py` fallback 버그수정(SQLite `INSERT OR IGNORE`) 완료 |
-| REST API 엔드포인트 | 100% | ✅ 완료 | `/api/health`, `/api/predict`, `/api/stats`, `/api/stations`, `/api/weather/current` 테스트(`test_app.py`) 100% 통과 |
+| REST API 엔드포인트 | 100% | ✅ 완료 | `/api/health`, `/api/predict`, `/api/stats`, `/api/stations`, `/api/crowd-count` — `test_app.py` 7/7 PASS |
 | Prediction Cache | 100% | ✅ 완료 | **[26.04.01]** LRU TTL Cache 적용, 응답 800ms→23ms (35x 개선) |
 | 입력 검증 / 보안 | 100% | ✅ 완료 | **[26.04.01]** station_id regex, hour/weekday isdigit 검증 + Flask-Limiter Rate Limiting 전 엔드포인트 적용 |
 | Stats Cache | 100% | ✅ 완료 | **[26.04.01]** /api/stats 60초 TTL Cache (Codex 구현) |
@@ -55,23 +55,39 @@ Frontend  ████████████████████ 100%
 | 시각화 및 지도 (Chart/Leaflet) | 100% | ✅ 완료 | **[26.04.01]** 바 차트 + 도넛 차트(혼잡도 분포) + Leaflet 지도 완성 |
 | PWA manifest/SW | 100% | ✅ 완료 | Service Worker 및 manifest 설정 완료 |
 
-### 4. Hardware (Jetson Orin Nano + Raspberry Pi 4) — 30%
+### 4. Hardware (Jetson Orin Nano + Raspberry Pi 4) — 50%
 ```text
-Hardware  ██████░░░░░░░░░░░░░░ 30%
+Hardware  ██████████░░░░░░░░░░ 50%
 ```
 | 세부 항목 | 진행도 | 상태 | 비고 (수행 내용) |
 |-----------|--------|------|------|
-| 하드웨어 설계서 v2.0 | 100% | ✅ 완료 | **[26.04.10]** Jetson+Pi 역할 분리, DeepSORT 파이프라인, BOM 769K |
-| 구매검토 보고서 v3 | 100% | ✅ 완료 | **[26.04.10]** Jetson 기반 80만원 예산, 설계서 100% 정합 |
-| 부품 구매 | 0% | ⬜ 대기 | 목표: 4/14 주문, 4/18 수령 |
-| JetPack + YOLOv8 TensorRT 설치 | 0% | ⬜ 대기 | 1주차 작업 |
+| 하드웨어 설계서 v2.0 | 100% | ✅ 완료 | **[26.04.10]** Jetson+Pi 역할 분리, DeepSORT 파이프라인, BOM 792K |
+| 구매검토 보고서 v3 | 100% | ✅ 완료 | **[26.04.10]** Jetson 기반 80만원 예산, 실매가 조사 반영 |
+| `counter.py` (AI 카운팅 스크립트) | 100% | ✅ 완료 | **[26.04.15]** YOLOv8+DeepSORT+Line Crossing, PC 웹캠/Jetson TensorRT 지원 |
+| `/api/crowd-count` 엔드포인트 | 100% | ✅ 완료 | **[26.04.15]** POST/GET/history, crowd_counts 테이블, 7/7 테스트 PASS |
+| 부품 구매 | 0% | ⬜ 대기 | 목표: 4/18 수령 |
+| JetPack + YOLOv8 TensorRT 설치 | 0% | ⬜ 대기 | 1주차 작업 (부품 수령 후) |
 | Pi Kiosk + Backend 연동 | 0% | ⬜ 대기 | 2주차 작업 |
-| DeepSORT + Line Crossing 구현 | 0% | ⬜ 대기 | 3주차 작업 |
-| 현장 설치 + 안정성 테스트 | 0% | ⬜ 대기 | 4주차 작업 |
+| 현장 설치 + 안정성 테스트 | 0% | ⬜ 대기 | 3~4주차 작업 |
 
 ---
 
 ## 📝 최근 작업 내역
+
+### 2026-04-15: AI 카운팅 파이프라인 구현 + 문서 정합성 갱신
+1. **`hardware/counter.py` 구현**
+   * YOLOv8 + DeepSORT + Line Crossing 기반 인원 카운팅 스크립트
+   * PC 웹캠 `--debug` 모드 + Jetson TensorRT `.engine` 배포 지원
+   * 10초 간격 자동 POST `/api/crowd-count`
+2. **`/api/crowd-count` 백엔드 엔드포인트**
+   * POST (Jetson→Backend), GET (최신 조회), GET /history (이력)
+   * `crowd_counts` DB 테이블 추가, 입력 검증, Rate Limiting
+   * `test_app.py` 4개 테스트 추가 → 전체 7/7 PASS
+3. **문서-코드 정합성 전면 갱신**
+   * PROGRESS.md: Hardware 30%→50%, counter.py/crowd-count 완료 반영
+   * 루트 README.md: hardware/ 설명, 배지, 폴더 구조, 실행 가이드 갱신
+   * docs/README.md: 설계서 설명 Jetson+Pi 반영
+   * 설계서 v2.0: 신규 개발 항목 완료 상태 갱신
 
 ### 2026-04-10: 1차 리뷰 피드백 반영 + Jetson 아키텍처 전환
 1. **시스템 플로우차트 v2 작성**
@@ -144,4 +160,10 @@ Hardware  ██████░░░░░░░░░░░░░░ 30%
 - [x] ~~운영자 대시보드 완성~~: 완료 (도넛차트, 자동갱신, 로딩UI, fitBounds)
 - [x] ~~Flask-Limiter Rate Limiting 적용~~: 완료 (predict/stats 30/min, stations 60/min, weather 30/min, 429 핸들러)
 - [x] ~~Docker 배포 환경 구축~~: 완료 (Dockerfile x2, docker-compose.yml, nginx reverse proxy)
-- [x] ~~Raspberry Pi 설계 문서~~: 완료 (BOM, 설치절차, 4주 일정, 리스크 대응)
+- [x] ~~Raspberry Pi 설계 문서~~: 완료 → **v2.0 Jetson+Pi 구조로 전면 개정** (2026-04-10)
+- [x] ~~`counter.py` AI 카운팅 스크립트~~: 완료 (YOLOv8+DeepSORT+Line Crossing, 2026-04-15)
+- [x] ~~`/api/crowd-count` 엔드포인트~~: 완료 (POST/GET/history, 7/7 PASS, 2026-04-15)
+- [ ] 부품 구매 + JetPack 설치 (부품 수령 후)
+- [ ] Pi Kiosk + Backend 현장 연동
+- [ ] 카운팅 정확도 튜닝 + 실측 데이터 수집
+- [ ] 1차 시연 (5/21)
