@@ -32,6 +32,16 @@ CREATE TABLE IF NOT EXISTS weather_cache (
     fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS crowd_counts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    station_id VARCHAR(10) NOT NULL,
+    count_in INT NOT NULL DEFAULT 0,
+    count_board INT NOT NULL DEFAULT 0,
+    current_waiting INT NOT NULL DEFAULT 0,
+    source VARCHAR(20) DEFAULT 'jetson',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 초기 데이터: 샘플 정류장
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
 ('22011', '지하철2호선강남역', 37.4979502, 127.0276368),

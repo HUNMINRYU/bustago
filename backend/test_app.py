@@ -33,3 +33,49 @@ def test_predict_endpoint_success(client):
     assert resp.json["status"] == "ok"
     assert "prediction" in resp.json["data"]
     assert resp.json["data"]["station_id"] == "100100118"
+
+
+# --- Crowd Count Tests ---
+
+def test_crowd_count_post_success(client):
+    """POST /api/crowd-count 정상 데이터 전송 시 200 확인"""
+    resp = client.post("/api/crowd-count", json={
+        "station_id": "INS01",
+        "count_in": 5,
+        "count_board": 3,
+        "current_waiting": 2,
+    })
+    assert resp.status_code == 200
+    assert resp.json["status"] == "ok"
+
+
+def test_crowd_count_post_missing_station(client):
+    """POST /api/crowd-count station_id 누락 시 400 확인"""
+    resp = client.post("/api/crowd-count", json={
+        "count_in": 5,
+        "count_board": 3,
+        "current_waiting": 2,
+    })
+    assert resp.status_code == 400
+    assert "station_id" in resp.json["message"]
+
+
+def test_crowd_count_get_success(client):
+    """POST 후 GET /api/crowd-count 최신 데이터 조회 확인"""
+    client.post("/api/crowd-count", json={
+        "station_id": "GETtest1",
+        "count_in": 10,
+        "count_board": 4,
+        "current_waiting": 6,
+    })
+    resp = client.get("/api/crowd-count?station_id=GETtest1")
+    assert resp.status_code == 200
+    assert resp.json["status"] == "ok"
+    assert resp.json["data"]["count_in"] == 10
+    assert resp.json["data"]["current_waiting"] == 6
+
+
+def test_crowd_count_get_no_data(client):
+    """GET /api/crowd-count 데이터 없는 정류장 조회 시 404 확인"""
+    resp = client.get("/api/crowd-count?station_id=UNKNOWN1")
+    assert resp.status_code == 404
