@@ -40,6 +40,7 @@
 | GStack 역할 구조 정의 | [gstack_역할구조_정의.md](03_구축/20260330_gstack_역할구조_정의.md) | AI 스킬 자율 진화 파이프라인 역할 구조 명세 |
 | GStack 아키텍처 리뷰 | [GSTACK_REVIEW.md](GSTACK_REVIEW.md) | CEO/Eng/CSO 관점 리뷰 및 Harness 평가 지표 |
 | 하드웨어 연동 설계서 v2.0 | [하드웨어_연동_설계.md](03_구축/하드웨어_연동_설계.md) | **Jetson Orin Nano(AI) + Pi 4(Kiosk)** 역할 분리, DeepSORT 카운팅 설계 |
+| 팀원별 작업배분 5주 계획 | [팀원별_작업배분_5주계획.md](03_구축/팀원별_작업배분_5주계획.md) | 4명 팀원 역할별 5주간 세부 작업 + 시연(5/21) 준비 계획 |
 
 ---
 
