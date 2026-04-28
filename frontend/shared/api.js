@@ -1,6 +1,6 @@
 // BUSTAGO Shared API Wrapper
 
-var API_BASE = 'http://localhost:5000/api';
+var API_BASE = window.location.origin + '/api';
 
 async function fetchAPI(endpoint, params) {
   params = params || {};

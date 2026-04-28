@@ -1,6 +1,6 @@
 # BUSTAGO 프로젝트 진행 현황
 
-> **최종 업데이트 일시:** 2026-04-15 (KST)
+> **최종 업데이트 일시:** 2026-04-28 (KST)
 > 1차 시연: 5.21 | 최종 보고서: 6.4
 
 ---
@@ -38,7 +38,7 @@ Backend   ████████████████████ 100%
 |-----------|--------|------|------|
 | Flask 앱 (`app.py`) | 100% | ✅ 완료 | 블루프린트 라우팅 구현 및 구동 확인 |
 | DB 스키마 (`schema.sql`) | 100% | ✅ 완료 | **[26.03.30]** `db.py` fallback 버그수정(SQLite `INSERT OR IGNORE`) 완료 |
-| REST API 엔드포인트 | 100% | ✅ 완료 | `/api/health`, `/api/predict`, `/api/stats`, `/api/stations`, `/api/crowd-count` — `test_app.py` 7/7 PASS |
+| REST API 엔드포인트 | 100% | ✅ 완료 | `/api/health`, `/api/predict`, `/api/stats`, `/api/stations`, `/api/crowd-count`, `/api/route-recommend` — `test_app.py` 7/7 PASS |
 | Prediction Cache | 100% | ✅ 완료 | **[26.04.01]** LRU TTL Cache 적용, 응답 800ms→23ms (35x 개선) |
 | 입력 검증 / 보안 | 100% | ✅ 완료 | **[26.04.01]** station_id regex, hour/weekday isdigit 검증 + Flask-Limiter Rate Limiting 전 엔드포인트 적용 |
 | Stats Cache | 100% | ✅ 완료 | **[26.04.01]** /api/stats 60초 TTL Cache (Codex 구현) |
@@ -50,8 +50,8 @@ Frontend  ████████████████████ 100%
 ```
 | 세부 항목 | 진행도 | 상태 | 비고 (수행 내용) |
 |-----------|--------|------|------|
-| 학생 PWA (`app.js`, `index.html`) | 100% | ✅ 완료 | DOM 조작, API Fetch, UI 로직 구현 완료 |
-| 운영자 대시보드 (`admin/`) | 100% | ✅ 완료 | **[26.04.01]** 자동갱신(60초), 로딩UI, 도넛차트, 지도fitBounds 추가 |
+| 학생 PWA (`app.js`, `index.html`) | 100% | ✅ 완료 | **[26.04.28]** 출발지/목적지 드롭다운 + 노선별 혼잡도 추천 카드 UI 추가 |
+| 운영자 대시보드 (`admin/`) | 100% | ✅ 완료 | **[26.04.28]** 실시간 카운팅 패널(대기/IN/BOARD + Jetson 연결 상태) 추가 |
 | 시각화 및 지도 (Chart/Leaflet) | 100% | ✅ 완료 | **[26.04.01]** 바 차트 + 도넛 차트(혼잡도 분포) + Leaflet 지도 완성 |
 | PWA manifest/SW | 100% | ✅ 완료 | Service Worker 및 manifest 설정 완료 |
 
@@ -73,6 +73,29 @@ Hardware  ██████████░░░░░░░░░░ 50%
 ---
 
 ## 📝 최근 작업 내역
+
+### 2026-04-28: 대체노선 추천 API + Admin 카운팅 패널 + 광주 정류장 데이터
+1. **`/api/route-recommend` 엔드포인트 (신규)**
+   * `backend/routes/recommend.py` 신규 구현
+   * `GET /api/route-recommend?station_id=&hour=&weekday=&dest=`
+   * STATIC_ROUTES(GATE01: 419번·518번, INS01: 셔틀1·2·5·6호차) + DB routes 테이블 폴백
+   * ML 모델로 노선별 혼잡도 예측 → level 낮은 순 정렬, `recommended=True` 1개 자동 마킹
+   * 피크타임 fallback (hour 8·9·17·18 → level=2) 포함
+2. **`backend/schema.sql` — 광주 정류장 + routes 테이블 추가**
+   * INS01(인성관), GATE01(정문) 2개 정류장 INSERT
+   * routes 테이블 신규 생성 (419번, 518번, 셔틀 1~6호차)
+3. **Admin 실시간 카운팅 패널**
+   * `frontend/admin/index.html` — 카운팅 패널 섹션 추가
+   * `frontend/admin/dashboard.js` — `loadCrowdCount()` 10초 폴링 + Jetson staleness 판정
+   * `frontend/admin/style.css` — `.counting-panel`, `.status-dot.online/stale/offline` 추가
+4. **Student PWA 출발지/목적지 + 노선 추천 UI**
+   * `frontend/student/index.html` — `#dest-select` 드롭다운 + `#route-recommend-section` 추가
+   * `frontend/student/app.js` — `loadRouteRecommend()` 구현, destSelect change 이벤트 연결
+   * `frontend/student/style.css` — 노선 카드 CSS 추가
+5. **문서 & 계약서 정합성 수정**
+   * `_workspace/01_ml_model_contract.json` v1.0→v2.0: 7 feature / n_estimators=10 동기화
+   * `frontend/shared/api.js` API_BASE 하드코딩 → `window.location.origin + '/api'`
+   * 프로젝트 루트 잔여 파일 `=3.5` 삭제
 
 ### 2026-04-15: AI 카운팅 파이프라인 구현 + 문서 정합성 갱신
 1. **`hardware/counter.py` 구현**
@@ -163,7 +186,13 @@ Hardware  ██████████░░░░░░░░░░ 50%
 - [x] ~~Raspberry Pi 설계 문서~~: 완료 → **v2.0 Jetson+Pi 구조로 전면 개정** (2026-04-10)
 - [x] ~~`counter.py` AI 카운팅 스크립트~~: 완료 (YOLOv8+DeepSORT+Line Crossing, 2026-04-15)
 - [x] ~~`/api/crowd-count` 엔드포인트~~: 완료 (POST/GET/history, 7/7 PASS, 2026-04-15)
+- [x] ~~`/api/route-recommend` 대체노선 추천 API~~: 완료 (2026-04-28)
+- [x] ~~Admin 실시간 카운팅 패널~~: 완료 (2026-04-28)
+- [x] ~~Student PWA 출발지/목적지 + 노선 추천~~: 완료 (2026-04-28)
+- [x] ~~ML 계약서 동기화 (C1)~~: 완료 — v2.0으로 갱신 (2026-04-28)
+- [x] ~~API_BASE 하드코딩 해소 (C2)~~: 완료 — `window.location.origin` 적용 (2026-04-28)
 - [ ] 부품 구매 + JetPack 설치 (부품 수령 후)
 - [ ] Pi Kiosk + Backend 현장 연동
+- [ ] Watchdog 스크립트 배포 (`hardware/watchdog_jetson.sh`, `watchdog_pi.sh`)
 - [ ] 카운팅 정확도 튜닝 + 실측 데이터 수집
 - [ ] 1차 시연 (5/21)
