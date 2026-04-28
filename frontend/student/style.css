@@ -252,6 +252,15 @@ body {
   color: var(--text-secondary);
 }
 
+/* Route Recommend Cards */
+.route-card { padding: 12px; border-radius: 8px; margin-bottom: 8px; background: #F5F5F5; }
+.route-card.recommended { border-left: 4px solid #4CAF50; background: #F1F8E9; }
+.route-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.route-no { font-weight: 700; font-size: 1rem; }
+.rec-badge { background: #4CAF50; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; }
+.route-dest { font-size: 0.85rem; color: #757575; margin-bottom: 6px; }
+.congestion-badge { display: inline-block; color: white; font-size: 0.8rem; padding: 3px 10px; border-radius: 12px; }
+
 /* Responsive - Tablet+ */
 @media (min-width: 600px) {
   .app-main {

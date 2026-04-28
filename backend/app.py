@@ -20,6 +20,7 @@ from backend.routes.predict import predict_bp
 from backend.routes.stats import stats_bp
 from backend.routes.stations import stations_bp
 from backend.routes.crowd import crowd_bp
+from backend.routes.recommend import recommend_bp
 
 
 def create_app():
@@ -32,6 +33,7 @@ def create_app():
     app.register_blueprint(stats_bp)
     app.register_blueprint(stations_bp)
     app.register_blueprint(crowd_bp)
+    app.register_blueprint(recommend_bp)
 
     # DB 초기화
     with app.app_context():

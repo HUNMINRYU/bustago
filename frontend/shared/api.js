@@ -39,3 +39,14 @@ async function fetchStations() {
 async function fetchWeather() {
   return fetchAPI('/weather/current');
 }
+
+async function fetchCrowdCount(stationId) {
+  return fetchAPI('/crowd-count', { station_id: stationId });
+}
+
+async function fetchRouteRecommend(stationId, hour, weekday, dest) {
+  var params = { station_id: stationId, hour: hour };
+  if (weekday !== undefined) params.weekday = weekday;
+  if (dest) params.dest = dest;
+  return fetchAPI('/route-recommend', params);
+}

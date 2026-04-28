@@ -327,3 +327,16 @@ body {
     max-width: 100%;
   }
 }
+
+/* Realtime Counting Panel */
+.counting-panel { margin-bottom: 24px; }
+.counting-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.counting-card { background: #F8F9FA; border-radius: 8px; padding: 16px; text-align: center; }
+.counting-value { display: block; font-size: 2rem; font-weight: 700; color: #1976D2; }
+.counting-label { font-size: 0.85rem; color: #757575; }
+.live-badge { background: #F44336; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle; }
+.status-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-bottom: 8px; }
+.status-dot.online  { background: #4CAF50; }
+.status-dot.stale   { background: #FFC107; }
+.status-dot.offline { background: #BDBDBD; }
+.counting-timestamp { font-size: 0.75rem; color: #BDBDBD; margin-top: 8px; text-align: right; }

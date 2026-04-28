@@ -13,6 +13,7 @@ var CONGESTION = {
 
 // DOM Elements
 var stationSelect = document.getElementById('station-select');
+var destSelect = document.getElementById('dest-select');
 var congestionDisplay = document.getElementById('congestion-display');
 var congestionCircle = document.getElementById('congestion-circle');
 var congestionIcon = document.getElementById('congestion-icon');
@@ -25,6 +26,9 @@ var forecastBars = document.getElementById('forecast-bars');
 
 // Event Listeners
 stationSelect.addEventListener('change', onStationChange);
+if (destSelect) {
+  destSelect.addEventListener('change', function() { loadRouteRecommend(); });
+}
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
@@ -58,6 +62,8 @@ function hideResults() {
   congestionDisplay.classList.add('hidden');
   recommendation.classList.add('hidden');
   forecast.classList.add('hidden');
+  var rrs = document.getElementById('route-recommend-section');
+  if (rrs) rrs.classList.add('hidden');
 }
 
 // Load prediction from API
@@ -85,6 +91,7 @@ async function loadPrediction(stationId, hour) {
     updateRecommendation(demoLevel);
     updateForecastDemo(hour);
   }
+  loadRouteRecommend();
 }
 
 // Load forecast for next 6 hours via API
@@ -167,6 +174,45 @@ function updateCongestionDisplay(level) {
   congestionLabel.textContent = info.label;
   congestionMessage.textContent = info.message;
   congestionDisplay.classList.remove('hidden');
+}
+
+// Load route recommendations from API
+async function loadRouteRecommend() {
+  var stationId = stationSelect ? stationSelect.value : '';
+  if (!stationId) return;
+
+  var now = new Date();
+  var hour = now.getHours();
+  var jsDay = now.getDay();
+  var weekday = jsDay === 0 ? 6 : jsDay - 1;
+  var dest = destSelect ? destSelect.value : '';
+
+  var section = document.getElementById('route-recommend-section');
+  var list = document.getElementById('route-list');
+  if (!section || !list) return;
+
+  var result = await fetchRouteRecommend(stationId, hour, weekday, dest);
+
+  if (!result || !result.routes || result.routes.length === 0) {
+    section.classList.add('hidden');
+    return;
+  }
+
+  section.classList.remove('hidden');
+  list.innerHTML = result.routes.map(function(r) {
+    var c = r.congestion;
+    var lvl = c.level;
+    var color = (CONGESTION[lvl] && CONGESTION[lvl].color) ? CONGESTION[lvl].color : '#9E9E9E';
+    var labelText = (CONGESTION[lvl] && CONGESTION[lvl].label) ? CONGESTION[lvl].label : '알 수 없음';
+    var recBadge = r.recommended ? '<span class="rec-badge">추천</span>' : '';
+    return '<div class="route-card' + (r.recommended ? ' recommended' : '') + '">' +
+      '<div class="route-header">' +
+        '<span class="route-no">' + r.route_name + '</span>' + recBadge +
+      '</div>' +
+      '<div class="route-dest">→ ' + r.end_stations.join(', ') + '</div>' +
+      '<div class="congestion-badge" style="background:' + color + '">' + labelText + '</div>' +
+    '</div>';
+  }).join('');
 }
 
 // Update recommendation card

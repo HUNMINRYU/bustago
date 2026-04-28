@@ -42,10 +42,37 @@ CREATE TABLE IF NOT EXISTS crowd_counts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 초기 데이터: 샘플 정류장
+-- 초기 데이터: 샘플 정류장 (서울 — ML 학습 기준)
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
 ('22011', '지하철2호선강남역', 37.4979502, 127.0276368),
 ('22012', '강남역12번출구', 37.4985440, 127.0285530),
 ('23115', '서울역버스환승센터', 37.5546788, 126.9706069),
 ('21148', '광화문광장앞', 37.5713680, 126.9774430),
 ('22341', '잠실역', 37.5133890, 127.1001510);
+
+-- 광주대학교 정류장
+INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
+('INS01',  '광주대 인성관 (셔틀)',    35.1377000, 126.8930000),
+('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000);
+
+-- 노선 테이블 (route-recommend API용)
+CREATE TABLE IF NOT EXISTS routes (
+    id INTEGER PRIMARY KEY,
+    route_no VARCHAR(20) NOT NULL,
+    route_name VARCHAR(100) NOT NULL,
+    start_station_id VARCHAR(10) NOT NULL,
+    end_stations TEXT NOT NULL,
+    route_count INTEGER DEFAULT 5,
+    is_shuttle INTEGER DEFAULT 0
+);
+
+INSERT OR IGNORE INTO routes
+    (route_no, route_name, start_station_id, end_stations, route_count, is_shuttle) VALUES
+('419',     '419번 (광주역행)', 'GATE01', '["광주역","충장로","금남로"]', 8, 0),
+('518',     '518번 (금남로행)', 'GATE01', '["금남로","충장로","광주대입구"]', 7, 0),
+('SHUTTLE1','셔틀 1호차', 'INS01', '["정문"]', 2, 1),
+('SHUTTLE2','셔틀 2호차', 'INS01', '["정문"]', 2, 1),
+('SHUTTLE3','셔틀 3호차', 'GATE01', '["인성관"]', 2, 1),
+('SHUTTLE4','셔틀 4호차', 'GATE01', '["인성관"]', 2, 1),
+('SHUTTLE5','셔틀 5호차', 'INS01', '["정문"]', 2, 1),
+('SHUTTLE6','셔틀 6호차', 'INS01', '["정문"]', 2, 1);
