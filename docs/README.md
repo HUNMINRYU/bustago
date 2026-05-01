@@ -42,6 +42,8 @@
 | 하드웨어 연동 설계서 v2.1 | [하드웨어_연동_설계.md](03_구축/하드웨어_연동_설계.md) | Jetson Orin Nano(AI) + Pi 4(Kiosk) 역할 분리, DeepSORT 카운팅 설계 |
 | 팀원별 작업배분 5주 계획 | [팀원별_작업배분_5주계획.md](03_구축/팀원별_작업배분_5주계획.md) | 4명 팀원 역할별 5주간 세부 작업 + 시연(5/21) 준비 계획 |
 | 시연 계획서 | [시연_계획서.md](03_구축/시연_계획서.md) | 5/21 시연 시나리오·성공 기준·리스크 대응 |
+| HW 설치 가이드 Part 1 | [HW_설치_가이드_Part1_Jetson.md](03_구축/HW_설치_가이드_Part1_Jetson.md) | Jetson JetPack→TensorRT→counter.py→라인 튜닝→Watchdog (류훈민) |
+| HW 설치 가이드 Part 2 | [HW_설치_가이드_Part2_Pi_통합테스트.md](03_구축/HW_설치_가이드_Part2_Pi_통합테스트.md) | Pi OS→Kiosk 서비스→E2E 통합 테스트→비상 대응 (이건영/이트겔) |
 
 ---
 
