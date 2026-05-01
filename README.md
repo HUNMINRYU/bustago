@@ -10,14 +10,15 @@
 
 **BUSTAGO**는 서울시 버스도착정보 API(차내혼잡도 포함)와 승하차 이력 데이터를 활용하여  
 **"정류장 대기 혼잡도 + 버스 내부 혼잡도 → 탑승 가능성 예측"** 결합 모델을 설계·검증한 후,  
-이 모델 구조를 광주대학교 셔틀버스 승차장과 시내버스 정류장에 재학습(retrain)하여 적용하는 시스템입니다.
+이 모델 구조를 광주대학교 인성관 정류장에 직접 적용하여 운영하는 시스템입니다.
 
-### 3단계 파이프라인
-| 단계 | 내용 |
-|------|------|
-| **1단계** | 서울시 공공데이터(차내혼잡도, 승하차 이력)로 결합 모델 구조 설계·검증 |
-| **2단계** | 광주대 인성관 앞 셔틀 승차장에 모델 적용 (테스트베드 ①) |
-| **3단계** | 광주대 정문 시내버스 정류장으로 확장 (테스트베드 ②) |
+### 시스템 구조
+| 레이어 | 내용 |
+|--------|------|
+| **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상)로 RandomForest 모델 학습 |
+| **AI 카운팅** | 광주대 인성관 정류장 — Jetson Orin Nano(YOLOv8+DeepSORT)로 실시간 대기 인원 수집 |
+| **혼잡도 예측** | 서울 학습 모델 → 광주 정류장 직접 적용 (혼잡도 4단계 기준은 국토부 표준으로 동일) |
+| **사용자 인터페이스** | 학생 PWA(혼잡도 + 노선 추천) + 운영자 Admin 대시보드(실시간 카운팅) |
 
 ### 혼잡도 4단계
 | 단계 | 기준 |
@@ -66,26 +67,25 @@
 ## 📁 폴더 구조
 ```
 bustago/
-├── backend/                # Flask REST API, MySQL/SQLite DB, 공공 API 연동
+├── backend/                # Flask REST API (9개 엔드포인트), SQLite/MySQL DB
 ├── frontend/               # 학생 PWA + 운영자 PC 대시보드
-│   ├── student/            #   학생용 모바일 PWA
-│   ├── admin/              #   운영자 PC 대시보드 (Chart.js, Leaflet.js)
+│   ├── student/            #   학생용 모바일 PWA (혼잡도 + 노선 추천)
+│   ├── admin/              #   운영자 PC 대시보드 (Chart.js, Leaflet.js, 실시간 카운팅 패널)
 │   └── shared/             #   공용 API 래퍼
-├── ml/                     # Random Forest 혼잡도 예측 파이프라인
-│   ├── data_collection/    #   데이터 수집 (혼잡도, 승하차, 기상)
+├── ml/                     # RandomForest 혼잡도 예측 파이프라인
+│   ├── data_collection/    #   서울시 API 데이터 수집 (혼잡도·승하차·기상)
 │   ├── preprocessing/      #   전처리 + Feature 결합
-│   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB)
+│   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB, CV 0.9962)
 ├── hardware/               # Jetson Orin Nano AI 카운팅 (YOLOv8 + DeepSORT + Line Crossing)
 ├── docs/                   # 프로젝트 산출물
-│   ├── 00_하네스설계/      #   AI 에이전트 팀 하네스 아키텍처
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
-│   ├── 02_설계/            #   아키텍처, DB설계, 화면설계
-│   ├── 03_구축/            #   하네스 실행 결과, GStack 역할 구조, 하드웨어 설계서 v2.0
-│   ├── 04_테스트/          #   ML Autoresearch 로그, 단위 테스트
-│   ├── 05_배포/            #   하드웨어 구매검토 보고서 v2/v3
-│   ├── 06_조사데이터/      #   설문결과, EDA 분석
+│   ├── 02_설계/            #   아키텍처, DB설계, 화면설계, 하드웨어 개념도, 물리 설치 설계도
+│   ├── 03_구축/            #   하드웨어 연동 설계, 팀원 작업배분, 시연 계획서
+│   ├── 04_테스트/          #   ML 단위 테스트, Backend pytest
+│   ├── 05_배포/            #   하드웨어 구매검토 보고서 v5 (최신)
+│   ├── 06_조사데이터/      #   설문결과, EDA 분석, API 비교, 유사프로젝트 사례분석
 │   └── 발표자료/           #   PPT, 대본, 포스터
-├── research_log.txt        # ML Autoresearch 12회 반복 실험 로그
+├── CONTRIBUTING.md         # AI 산출물 검토 프로세스 + Git 규칙
 └── README.md
 ```
 
@@ -99,9 +99,7 @@ bustago/
 | 승하차 이력 | 서울 열린데이터광장 | 정류장 혼잡 패턴 분석 (1단계) | ✅ 수집 완료 |
 | 기상 데이터 | 기상청 API | 날씨 변수 반영 | ✅ 수집 완료 |
 | 학생 설문 | 구글폼 (N≥50) | 필요성 검증 + 이용 패턴 | ✅ 완료 |
-| 시내버스 승하차 인원 | 광주시 공공데이터포털 | 시내버스 모델 학습 (2-3단계) | 예정 |
-| 셔틀 운행 기록 | 컴온버스 / 학생지원팀 | 셔틀 만차 패턴 학습 (2단계) | 예정 |
-| 현장 카운팅 | 직접 수집 (2곳 × 2주) | Ground Truth (2-3단계) | 예정 |
+| 현장 카운팅 | Jetson Orin Nano — YOLOv8+DeepSORT Line Crossing | Ground Truth (2-3단계) | 🔄 HW 설치 후 진행 |
 
 ---
 
@@ -128,6 +126,7 @@ cd bustago
 
 ### 2. 백엔드
 ```bash
+python -m venv .venv && source .venv/bin/activate  # (Windows: .venv\Scripts\activate)
 cd backend
 pip install -r requirements.txt
 python app.py
