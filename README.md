@@ -76,15 +76,16 @@ bustago/
 │   ├── data_collection/    #   서울시 API 데이터 수집 (혼잡도·승하차·기상)
 │   ├── preprocessing/      #   전처리 + Feature 결합
 │   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB, CV 0.9962)
-├── hardware/               # Jetson Orin Nano AI 카운팅 (YOLOv8 + DeepSORT + Line Crossing)
+├── hardware/               # Jetson AI 카운팅 (counter.py) + Watchdog 스크립트 (watchdog_jetson/pi.sh)
 ├── docs/                   # 프로젝트 산출물
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
 │   ├── 02_설계/            #   아키텍처, DB설계, 화면설계, 하드웨어 개념도, 물리 설치 설계도
-│   ├── 03_구축/            #   하드웨어 연동 설계, 팀원 작업배분, 시연 계획서
-│   ├── 04_테스트/          #   ML 단위 테스트, Backend pytest
+│   ├── 03_구축/            #   하드웨어 연동 설계, 팀원 작업배분, 시연 계획서, HW 설치 가이드 Part1/2
+│   ├── 04_테스트/          #   ML 단위 테스트, Backend pytest, AI 카운팅 정확도 리포트 템플릿
 │   ├── 05_배포/            #   하드웨어 구매검토 보고서 v5 (최신)
 │   ├── 06_조사데이터/      #   설문결과, EDA 분석, API 비교, 유사프로젝트 사례분석
-│   └── 발표자료/           #   PPT, 대본, 포스터
+│   ├── 발표자료/           #   PPT, 대본, 포스터, 슬라이드 구조
+│   └── _회의준비/          #   구두 설명 가이드 3종 + 데모 실행 가이드
 ├── CONTRIBUTING.md         # AI 산출물 검토 프로세스 + Git 규칙
 └── README.md
 ```
@@ -134,8 +135,16 @@ python app.py
 
 ### 3. 프론트엔드
 ```bash
-# 학생 PWA: frontend/student/index.html 을 브라우저에서 열거나 라이브 서버 사용
-# 운영자 대시보드: frontend/admin/index.html
+# 프론트엔드 정적 서버 시작 (포트 8080, API 프록시 포함)
+# 자세한 실행법: docs/_회의준비/데모_실행_가이드.md 참조
+
+# WSL2 환경에서 브라우저 열기
+cmd.exe /c start http://localhost:8080/student/index.html   # 학생 PWA
+cmd.exe /c start http://localhost:8080/admin/index.html     # 운영자 대시보드
+
+# 일반 Linux/Mac
+open http://localhost:8080/student/index.html               # Mac
+xdg-open http://localhost:8080/student/index.html           # Linux
 ```
 
 ### 4. ML 모델
