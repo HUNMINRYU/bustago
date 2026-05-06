@@ -6,8 +6,10 @@ Jetson Orin Nano에서 실행되는 YOLOv8 + DeepSORT 기반 인원 카운팅 �
 
 ```
 hardware/
-├── counter.py          # 메인 카운팅 스크립트
-├── requirements.txt    # Python 의존성
+├── counter.py              # 메인 카운팅 스크립트 (YOLOv8 + DeepSORT + Line Crossing)
+├── watchdog_jetson.sh      # Jetson counter.py 프로세스 감시·자동 재시작 (crontab: */5분)
+├── watchdog_pi.sh          # Pi Chromium Kiosk 프로세스 감시·자동 재시작 (crontab: */2분)
+├── requirements.txt        # Python 의존성
 └── README.md
 ```
 
