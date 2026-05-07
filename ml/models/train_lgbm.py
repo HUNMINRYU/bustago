@@ -12,20 +12,26 @@ Usage:
     python train_lgbm.py --compare   # RF와 나란히 비교
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import time
 
-import joblib
-import numpy as np
-import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report, f1_score
-from sklearn.model_selection import cross_val_score, train_test_split
-
 try:
+    import joblib
+    import numpy as np
+    import pandas as pd
     from lightgbm import LGBMClassifier
-except ImportError:
-    raise ImportError("LightGBM 미설치. pip install lightgbm")
+    from sklearn.metrics import accuracy_score, classification_report, f1_score
+    from sklearn.model_selection import cross_val_score, train_test_split
+    HAS_ML_DEPS = True
+    _IMPORT_ERROR = None
+except ImportError as exc:
+    HAS_ML_DEPS = False
+    _IMPORT_ERROR = exc
+    joblib = np = pd = None
+    LGBMClassifier = None
 
 FEATURE_COLS = [
     "hour", "weekday",
@@ -153,6 +159,11 @@ def main():
     parser = argparse.ArgumentParser(description="BUSTAGO LightGBM 혼잡도 모델 학습")
     parser.add_argument("--compare", action="store_true", help="RF와 성능 비교 출력")
     args = parser.parse_args()
+
+    if not HAS_ML_DEPS:
+        from train_lgbm_fallback import main as fallback_main
+
+        return fallback_main(args=args, missing_dependency=str(_IMPORT_ERROR))
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.join(script_dir, "..", "..")
