@@ -74,7 +74,7 @@ cd ~
 python3 -m venv bustago-env
 source bustago-env/bin/activate
 
-# ultralytics (YOLOv8) 설치 — JetPack 용 특별 절차
+# ultralytics (YOLOv11) 설치 — JetPack 용 특별 절차
 pip install --upgrade pip
 pip install ultralytics
 
@@ -82,7 +82,7 @@ pip install ultralytics
 pip install deep-sort-realtime opencv-python requests numpy
 
 # 설치 확인
-python3 -c "from ultralytics import YOLO; print('YOLOv8 OK')"
+python3 -c "from ultralytics import YOLO; print('YOLOv11 OK')"
 python3 -c "import cv2; print('OpenCV:', cv2.__version__)"
 ```
 
@@ -114,26 +114,26 @@ cap.release()
 
 ---
 
-## 4단계: YOLOv8-nano TensorRT FP16 변환
+## 4단계: YOLOv11-nano TensorRT FP16 변환
 
 ```bash
 # 모델 다운로드 + 변환 (최초 1회, 약 5~10분)
 source ~/bustago-env/bin/activate
 python3 -c "
 from ultralytics import YOLO
-model = YOLO('yolov8n.pt')  # 자동 다운로드
+model = YOLO('yolo11n.pt')  # 자동 다운로드
 model.export(format='engine', half=True, imgsz=640)
-print('TensorRT 엔진 변환 완료: yolov8n.engine')
+print('TensorRT 엔진 변환 완료: yolo11n.engine')
 "
 
 # 변환 확인
-ls -lh yolov8n.engine
+ls -lh yolo11n.engine
 # → 파일 크기 약 5~15MB면 성공
 
 # TensorRT 추론 테스트
 python3 -c "
 from ultralytics import YOLO
-model = YOLO('yolov8n.engine')
+model = YOLO('yolo11n.engine')
 import cv2, numpy as np
 dummy = np.zeros((640, 640, 3), dtype=np.uint8)
 result = model(dummy)
@@ -166,7 +166,7 @@ source ~/bustago-env/activate
 # 디버그 모드 — 화면에 bbox/라인/FPS 표시
 python3 counter.py \
   --camera 0 \
-  --model ~/yolov8n.engine \
+  --model ~/yolo11n.engine \
   --debug
 ```
 
@@ -179,7 +179,7 @@ python3 counter.py \
 # SERVER_IP를 실제 서버 IP로 변경
 python3 counter.py \
   --camera 0 \
-  --model ~/yolov8n.engine \
+  --model ~/yolo11n.engine \
   --server http://SERVER_IP/api/crowd-count \
   --station-id INS01 \
   --post-interval 10
@@ -204,12 +204,12 @@ BOARD 라인: y=0.3 (화면 높이의 30% — 탑승 감지)
 ### 7.2 튜닝 방법
 ```bash
 # 디버그 모드로 현장 영상 확인
-python3 counter.py --camera 0 --model ~/yolov8n.engine --debug
+python3 counter.py --camera 0 --model ~/yolo11n.engine --debug
 
 # 실제 사람 통과 위치 보면서 라인 조정
 python3 counter.py \
   --camera 0 \
-  --model ~/yolov8n.engine \
+  --model ~/yolo11n.engine \
   --in-line 0.65 \
   --board-line 0.35 \
   --debug
@@ -270,7 +270,7 @@ tail -f /var/log/bustago-watchdog.log
 ```
 [ ] JetPack 6.x 설치 및 jtop CUDA/TensorRT 확인
 [ ] Pi Camera v2 /dev/video0 인식 확인
-[ ] yolov8n.engine 변환 완료
+[ ] yolo11n.engine 변환 완료
 [ ] counter.py --debug 모드 25+ FPS 확인
 [ ] 서버 POST 10초 간격 200 OK 확인
 [ ] DB crowd_counts 증가 확인
