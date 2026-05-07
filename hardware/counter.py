@@ -1,20 +1,20 @@
 """
 BUSTAGO AI People Counter
 =========================
-YOLOv8 + DeepSORT + Line Crossing 기반 정류장 인원 카운팅.
+YOLOv11 + DeepSORT + Line Crossing 기반 정류장 인원 카운팅.
 
 - Jetson Orin Nano: TensorRT FP16 엔진 사용 (25~40 FPS)
 - PC 개발: PyTorch .pt 모델로 웹캠 테스트 가능
 
 Usage:
     # PC 웹캠 테스트
-    python counter.py --camera 0 --model yolov8n.pt --server http://localhost:5000
+    python counter.py --camera 0 --model yolo11n.pt --server http://localhost:5000
 
     # Jetson 배포 (TensorRT)
-    python counter.py --camera 0 --model yolov8n.engine --server http://SERVER_IP/api/crowd-count
+    python counter.py --camera 0 --model yolo11n.engine --server http://SERVER_IP/api/crowd-count
 
     # 디버그 모드 (화면 표시)
-    python counter.py --camera 0 --model yolov8n.pt --debug
+    python counter.py --camera 0 --model yolo11n.pt --debug
 """
 
 import argparse
@@ -231,7 +231,7 @@ def run_counter(args):
                 time.sleep(0.1)
                 continue
 
-            # YOLOv8 추론 (사람 클래스만: class 0)
+            # YOLOv11 추론 (사람 클래스만: class 0)
             results = model(frame, classes=[0], verbose=False, conf=args.conf)
 
             # Detection → DeepSORT 입력 형식 변환
@@ -314,8 +314,8 @@ def parse_args():
     p.add_argument("--fps", type=int, default=30, help="캡처 FPS (default: 30)")
 
     # 모델
-    p.add_argument("--model", default="yolov8n.pt",
-                   help="YOLOv8 모델 경로 (.pt 또는 .engine)")
+    p.add_argument("--model", default="yolo11n.pt",
+                   help="YOLOv11 모델 경로 (.pt 또는 .engine)")
     p.add_argument("--conf", type=float, default=0.5,
                    help="YOLO confidence 임계값 (default: 0.5)")
 
