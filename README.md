@@ -15,8 +15,8 @@
 ### 시스템 구조
 | 레이어 | 내용 |
 |--------|------|
-| **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상)로 RandomForest 모델 학습 |
-| **AI 카운팅** | 광주대 인성관 정류장 — Jetson Orin Nano(YOLOv8+DeepSORT)로 실시간 대기 인원 수집 |
+| **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상)로 LightGBM 모델 학습 |
+| **AI 카운팅** | 광주대 인성관 정류장 — Jetson Orin Nano(YOLOv11+DeepSORT)로 실시간 대기 인원 수집 |
 | **혼잡도 예측** | 서울 학습 모델 → 광주 정류장 직접 적용 (혼잡도 4단계 기준은 국토부 표준으로 동일) |
 | **사용자 인터페이스** | 학생 PWA(혼잡도 + 노선 추천) + 운영자 Admin 대시보드(실시간 카운팅) |
 
@@ -40,9 +40,9 @@
 
 ### AI / ML
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![RandomForest](https://img.shields.io/badge/Random%20Forest-228B22?style=flat)
+![LightGBM](https://img.shields.io/badge/LightGBM-02569B?style=flat)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikitlearn&logoColor=white)
-![YOLOv8](https://img.shields.io/badge/YOLOv8-00FFFF?style=flat&logo=ultralytics&logoColor=black)
+![YOLOv11](https://img.shields.io/badge/YOLOv11-00FFFF?style=flat&logo=ultralytics&logoColor=black)
 ![DeepSORT](https://img.shields.io/badge/DeepSORT-FF6F61?style=flat)
 
 ### Backend
@@ -72,10 +72,10 @@ bustago/
 │   ├── student/            #   학생용 모바일 PWA (혼잡도 + 노선 추천)
 │   ├── admin/              #   운영자 PC 대시보드 (Chart.js, Leaflet.js, 실시간 카운팅 패널)
 │   └── shared/             #   공용 API 래퍼
-├── ml/                     # RandomForest 혼잡도 예측 파이프라인
+├── ml/                     # LightGBM 혼잡도 예측 파이프라인
 │   ├── data_collection/    #   서울시 API 데이터 수집 (혼잡도·승하차·기상)
 │   ├── preprocessing/      #   전처리 + Feature 결합
-│   └── models/             #   학습 + 예측 (rf_model.pkl: 0.2MB, CV 0.9962)
+│   └── models/             #   학습 + 예측 (lgbm_model.pkl: 1.7MB, CV 0.9340)
 ├── hardware/               # Jetson AI 카운팅 (counter.py) + Watchdog 스크립트 (watchdog_jetson/pi.sh)
 ├── docs/                   # 프로젝트 산출물
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
@@ -100,7 +100,7 @@ bustago/
 | 승하차 이력 | 서울 열린데이터광장 | 정류장 혼잡 패턴 분석 (1단계) | ✅ 수집 완료 |
 | 기상 데이터 | 기상청 API | 날씨 변수 반영 | ✅ 수집 완료 |
 | 학생 설문 | 구글폼 (N≥50) | 필요성 검증 + 이용 패턴 | ✅ 완료 |
-| 현장 카운팅 | Jetson Orin Nano — YOLOv8+DeepSORT Line Crossing | Ground Truth (2-3단계) | 🔄 HW 설치 후 진행 |
+| 현장 카운팅 | Jetson Orin Nano — YOLOv11+DeepSORT Line Crossing | Ground Truth (2-3단계) | 🔄 HW 설치 후 진행 |
 
 ---
 
@@ -151,8 +151,10 @@ xdg-open http://localhost:8080/student/index.html           # Linux
 ```bash
 cd ml
 pip install -r ../backend/requirements.txt  # 공용 의존성
-python models/train_rf.py   # Random Forest 학습 (CV 0.9962, 0.2MB)
-python models/predict.py    # 혼잡도 예측 테스트
+pip install lightgbm                         # LightGBM 별도 설치
+python models/train_lgbm.py --compare       # LightGBM 학습 + RF 성능 비교
+python models/predict.py                     # 혼잡도 예측 테스트
+# (RF fallback: python models/train_rf.py)
 ```
 
 ### 5. AI 카운팅 (Jetson / PC 웹캠)
@@ -160,9 +162,9 @@ python models/predict.py    # 혼잡도 예측 테스트
 cd hardware
 pip install -r requirements.txt
 # PC 웹캠 테스트 (디버그 모드)
-python counter.py --camera 0 --model yolov8n.pt --debug
+python counter.py --camera 0 --model yolo11n.pt --debug
 # Jetson 배포
-python counter.py --camera 0 --model yolov8n.engine --server http://SERVER_IP/api/crowd-count
+python counter.py --camera 0 --model yolo11n.engine --server http://SERVER_IP/api/crowd-count
 ```
 
 ---

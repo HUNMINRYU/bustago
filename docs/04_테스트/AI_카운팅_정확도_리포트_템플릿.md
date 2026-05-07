@@ -10,8 +10,8 @@
 
 | 항목 | 내용 |
 |------|------|
-| AI 시스템 | Jetson Orin Nano + YOLOv8-nano + DeepSORT + Line Crossing |
-| 카메라 | Pi Camera v2 (CSI, 설치 높이 2.5m) |
+| AI 시스템 | Jetson Orin Nano + YOLOv11-nano + DeepSORT + Line Crossing |
+| 카메라 | Pi Camera v2 (CSI, 설치 높이 2.0~2.5m(기둥 측면, 45도 경사)) |
 | 측정 정류장 | INS01 (광주대 인성관 셔틀 정류장) |
 | 측정 기간 | [기입 필요] ~ [기입 필요] (3일) |
 | 수동 카운팅 담당 | 박건우 |
