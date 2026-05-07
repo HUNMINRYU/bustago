@@ -111,14 +111,30 @@ def predict():
     )
     station_name = station["station_name"] if station else station_id
 
+    # crowd_counts 테이블에서 해당 정류장의 최근 카운팅 값 조회
+    crowd = fetchone(
+        "SELECT count_board, count_in FROM crowd_counts WHERE station_id = ? ORDER BY created_at DESC LIMIT 1",
+        (station_id,),
+    )
+    prev_boarding = crowd["count_board"] if crowd else 0
+    prev_alighting = crowd["count_in"] if crowd else 0
+
+    # weather_cache 테이블에서 최근 날씨 조회
+    weather_row = fetchone(
+        "SELECT weather, temperature FROM weather_cache ORDER BY fetched_at DESC LIMIT 1",
+        (),
+    )
+    weather_val = weather_row["weather"] if weather_row else 0
+    temperature_val = weather_row["temperature"] if weather_row else 20.0
+
     # 피처 구성 (7개 -- rain/boarding/alighting 제거됨, Autoresearch 2026-03-31)
     features = {
         "hour": hour,
         "weekday": weekday,
-        "weather": 0,
-        "temperature": 20.0,
-        "prev_boarding": 0,
-        "prev_alighting": 0,
+        "weather": weather_val,
+        "temperature": temperature_val,
+        "prev_boarding": prev_boarding,
+        "prev_alighting": prev_alighting,
         "route_count": 5,
     }
 
