@@ -11,6 +11,15 @@ var CONGESTION = {
        message: '매우 혼잡합니다. 대안 교통을 고려하세요.' }
 };
 
+// 정류장 → gj_busstop_id 캐시 (stations API 응답에서 채워짐)
+var STATION_BUSSTOP_MAP = {};
+
+// 광주 BIS 실시간 도착 자동 갱신
+var ARRIVAL_REFRESH_MS = 30000;
+var arrivalTimer = null;
+var arrivalCountdown = 30;
+var arrivalCountdownTimer = null;
+
 // DOM Elements
 var stationSelect = document.getElementById('station-select');
 var destSelect = document.getElementById('dest-select');
@@ -44,6 +53,9 @@ if ('serviceWorker' in navigator) {
       opt.value = s.ars_no;
       opt.textContent = s.station_name;
       stationSelect.appendChild(opt);
+      if (s.gj_busstop_id) {
+        STATION_BUSSTOP_MAP[s.ars_no] = s.gj_busstop_id;
+      }
     });
   }
 })();
@@ -64,6 +76,9 @@ function hideResults() {
   forecast.classList.add('hidden');
   var rrs = document.getElementById('route-recommend-section');
   if (rrs) rrs.classList.add('hidden');
+  var as = document.getElementById('arrival-section');
+  if (as) as.classList.add('hidden');
+  stopArrivalTimers();
 }
 
 // Load prediction from API
@@ -92,6 +107,7 @@ async function loadPrediction(stationId, hour) {
     updateForecastDemo(hour);
   }
   loadRouteRecommend();
+  loadBusArrival();
 }
 
 // Load forecast for next 6 hours via API
@@ -213,6 +229,79 @@ async function loadRouteRecommend() {
       '<div class="congestion-badge" style="background:' + color + '">' + labelText + '</div>' +
     '</div>';
   }).join('');
+}
+
+// 광주 BIS 실시간 도착 정보 로드 + 30초 자동 갱신
+async function loadBusArrival() {
+  var stationId = stationSelect ? stationSelect.value : '';
+  var busstopId = STATION_BUSSTOP_MAP[stationId];
+  var section = document.getElementById('arrival-section');
+  var list = document.getElementById('arrival-list');
+  if (!section || !list) return;
+
+  if (!busstopId) {
+    section.classList.add('hidden');
+    stopArrivalTimers();
+    return;
+  }
+
+  var data = await fetchBusArrival(busstopId);
+  var items = data && data.items ? data.items : [];
+
+  section.classList.remove('hidden');
+
+  if (!items.length) {
+    list.innerHTML = '<div class="arrival-empty">현재 도착 예정 버스가 없습니다.</div>';
+  } else {
+    items.sort(function (a, b) {
+      return (parseInt(a.REMAIN_MIN) || 999) - (parseInt(b.REMAIN_MIN) || 999);
+    });
+    list.innerHTML = items.slice(0, 6).map(function (it) {
+      var min = parseInt(it.REMAIN_MIN) || 0;
+      var stop = parseInt(it.REMAIN_STOP) || 0;
+      var imminent = it.ARRIVE_FLAG == 1;
+      var low = it.LOW_BUS == 1;
+      var minCls = min <= 3 ? 'soon' : (min <= 10 ? 'mid' : 'far');
+      var dirEnd = it.DIR_END || '';
+      var lineName = it.SHORT_LINE_NAME || it.LINE_NAME || '?';
+      return '<div class="arrival-card">' +
+        '<div class="arrival-head">' +
+          '<span class="arrival-line">' + lineName + '</span>' +
+          (low ? '<span class="arrival-tag">저상</span>' : '') +
+          (imminent ? '<span class="arrival-tag imminent">곧 도착</span>' : '') +
+        '</div>' +
+        '<div class="arrival-meta">→ ' + dirEnd + '</div>' +
+        '<div class="arrival-eta">' +
+          '<span class="arrival-min ' + minCls + '">' + min + '분</span>' +
+          '<span class="arrival-stop">' + stop + '정류장 전</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  startArrivalTimers();
+}
+
+function startArrivalTimers() {
+  stopArrivalTimers();
+  arrivalCountdown = ARRIVAL_REFRESH_MS / 1000;
+  updateArrivalCountdownUI();
+  arrivalCountdownTimer = setInterval(function () {
+    arrivalCountdown--;
+    updateArrivalCountdownUI();
+    if (arrivalCountdown <= 0) arrivalCountdown = ARRIVAL_REFRESH_MS / 1000;
+  }, 1000);
+  arrivalTimer = setTimeout(function () { loadBusArrival(); }, ARRIVAL_REFRESH_MS);
+}
+
+function stopArrivalTimers() {
+  if (arrivalTimer) { clearTimeout(arrivalTimer); arrivalTimer = null; }
+  if (arrivalCountdownTimer) { clearInterval(arrivalCountdownTimer); arrivalCountdownTimer = null; }
+}
+
+function updateArrivalCountdownUI() {
+  var el = document.getElementById('arrival-countdown');
+  if (el) el.textContent = arrivalCountdown;
 }
 
 // Update recommendation card

@@ -50,3 +50,7 @@ async function fetchRouteRecommend(stationId, hour, weekday, dest) {
   if (dest) params.dest = dest;
   return fetchAPI('/route-recommend', params);
 }
+
+async function fetchBusArrival(busstopId) {
+  return fetchAPI('/arrive/' + busstopId);
+}

@@ -16,7 +16,10 @@ stations_bp = Blueprint("stations", __name__)
 @stations_bp.route("/api/stations")
 @limiter.limit("60 per minute")
 def list_stations():
-    rows = fetchall("SELECT ars_no, station_name, latitude, longitude FROM stations ORDER BY station_name")
+    rows = fetchall(
+        "SELECT ars_no, station_name, latitude, longitude, gj_busstop_id "
+        "FROM stations ORDER BY station_name"
+    )
     return jsonify({
         "status": "ok",
         "data": rows,
