@@ -60,8 +60,8 @@ def route_recommend():
             (station_id,)
         )
         routes = [
-            {"route_no": r[0], "route_name": r[1],
-             "end_stations": json.loads(r[2]), "route_count": r[3]}
+            {"route_no": r["route_no"], "route_name": r["route_name"],
+             "end_stations": json.loads(r["end_stations"]), "route_count": r["route_count"]}
             for r in (rows or [])
         ]
 
@@ -84,7 +84,10 @@ def route_recommend():
             "SELECT weather, temperature FROM weather_cache ORDER BY id DESC LIMIT 1", ()
         )
         if row:
-            weather_feat = {"weather": row[0] or 0, "temperature": float(row[1] or 20.0)}
+            weather_feat = {
+                "weather": row["weather"] or 0,
+                "temperature": float(row["temperature"] or 20.0),
+            }
     except Exception:
         pass
 

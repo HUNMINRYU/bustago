@@ -65,7 +65,7 @@ INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busst
 -- 노선 테이블 (route-recommend API용)
 CREATE TABLE IF NOT EXISTS routes (
     id INTEGER PRIMARY KEY,
-    route_no VARCHAR(20) NOT NULL,
+    route_no VARCHAR(20) NOT NULL UNIQUE,  -- UNIQUE → INSERT OR IGNORE 멱등 보장
     route_name VARCHAR(100) NOT NULL,
     start_station_id VARCHAR(10) NOT NULL,
     end_stations TEXT NOT NULL,
