@@ -1,13 +1,13 @@
 """
-BUSTAGO Backend -- /api/stations, /api/weather/current 엔드포인트
+BUSTAGO Backend -- /api/stations, /api/weather/current, /api/arrive, /api/lines 엔드포인트
 """
 
 import json
 from datetime import datetime
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from backend.models.db import fetchall, fetchone, execute
-from backend.config import WEATHER_API_KEY, WEATHER_API_URL
+from backend.config import WEATHER_API_KEY, WEATHER_API_URL, GJ_BIS_API_KEY, GJ_BIS_BASE_URL
 from backend.extensions import limiter
 
 stations_bp = Blueprint("stations", __name__)
@@ -98,6 +98,95 @@ def weather_current():
         "data": default_weather,
         "timestamp": now.isoformat(),
     })
+
+
+def _call_gj_bis(endpoint: str, params: dict = None) -> dict | None:
+    """광주광역시 버스정보시스템 API 호출 헬퍼."""
+    try:
+        import requests
+        url = f"{GJ_BIS_BASE_URL}/{endpoint}?serviceKey={GJ_BIS_API_KEY}"
+        res = requests.get(url, params=params or {}, timeout=8)
+        if res.status_code == 200:
+            return res.json()
+    except Exception as e:
+        print(f"[GJ BIS 오류] {endpoint}: {e}")
+    return None
+
+
+def _gj_bis_items(data: dict, list_key: str) -> list:
+    """광주 BIS 응답에서 아이템 목록 추출."""
+    try:
+        item = data["RESPONSE"][list_key]["ITEM"]
+        return item if isinstance(item, list) else [item]
+    except (KeyError, TypeError):
+        return []
+
+
+# 광주대 버스정류소 — captest/bus_server.py에서 확인된 실제 busstop_id
+GJ_STOPS = [
+    {"name": "광주대 (3230)", "busstop_id": 1981, "ars_no": "GATE01"},
+    {"name": "광주대 (3229)", "busstop_id": 80,   "ars_no": "GATE01"},
+    {"name": "광주대입구 (3228)", "busstop_id": 3219, "ars_no": "GATE01"},
+]
+
+
+@stations_bp.route("/api/arrive/<int:busstop_id>")
+@limiter.limit("30 per minute")
+def arrive(busstop_id: int):
+    """광주 BIS 실시간 버스 도착 정보."""
+    data = _call_gj_bis("arriveInfo", {"BUSSTOP_ID": busstop_id})
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    items = _gj_bis_items(data, "ARRIVE_LIST")
+    return jsonify({
+        "status": "ok",
+        "data": {"busstop_id": busstop_id, "items": items},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@stations_bp.route("/api/lines")
+@limiter.limit("10 per minute")
+def lines():
+    """광주 BIS 전체 노선 목록."""
+    data = _call_gj_bis("lineInfo")
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    resp = data.get("RESPONSE", {})
+    list_key = next((k for k in resp if k != "RESULT"), None)
+    items = _gj_bis_items(data, list_key) if list_key else []
+    return jsonify({
+        "status": "ok",
+        "data": {"items": items, "count": len(items)},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@stations_bp.route("/api/gj-stops")
+@limiter.limit("60 per minute")
+def gj_stops():
+    """광주대 버스정류소 목록 (busstop_id 포함)."""
+    return jsonify({
+        "status": "ok",
+        "data": GJ_STOPS,
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+def _get_current_weather() -> dict | None:
+    """현재 날씨 데이터 조회 (recommend.py 등에서 재사용)."""
+    try:
+        now = datetime.now()
+        cached = fetchone(
+            "SELECT weather, temperature FROM weather_cache WHERE location = ? AND hour = ? "
+            "ORDER BY fetched_at DESC LIMIT 1",
+            ("seoul", now.hour),
+        )
+        if cached:
+            return {"weather": cached["weather"], "temperature": cached["temperature"]}
+    except Exception:
+        pass
+    return None
 
 
 def _parse_kma_items(items):

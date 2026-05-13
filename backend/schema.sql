@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS stations (
     ars_no VARCHAR(10) UNIQUE NOT NULL,
     station_name VARCHAR(100) NOT NULL,
     latitude DECIMAL(10,7),
-    longitude DECIMAL(10,7)
+    longitude DECIMAL(10,7),
+    gj_busstop_id INT DEFAULT NULL  -- 광주 BIS API용 정류소 번호 (NULL이면 서울/셔틀)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS predictions (
@@ -50,10 +51,16 @@ INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
 ('21148', '광화문광장앞', 37.5713680, 126.9774430),
 ('22341', '잠실역', 37.5133890, 127.1001510);
 
--- 광주대학교 정류장
-INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
-('INS01',  '광주대 인성관 (셔틀)',    35.1377000, 126.8930000),
-('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000);
+-- 광주대학교 정류장 (셔틀 + 시내버스)
+INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
+('INS01',  '광주대 인성관 (셔틀)',    35.1377000, 126.8930000, NULL),
+('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000, NULL);
+
+-- 광주 BIS 실제 정류장 (captest/bus_server.py에서 확인, gj_bis arriveInfo 호출용)
+INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
+('GJ3230', '광주대 (3230)', 35.1380000, 126.8956000, 1981),
+('GJ3229', '광주대 (3229)', 35.1378000, 126.8954000, 80),
+('GJ3228', '광주대입구 (3228)', 35.1370000, 126.8940000, 3219);
 
 -- 노선 테이블 (route-recommend API용)
 CREATE TABLE IF NOT EXISTS routes (

@@ -32,3 +32,10 @@ WEATHER_API_URL = os.getenv(
     "WEATHER_API_URL",
     "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst",
 )
+
+# 광주광역시 버스정보시스템 API
+GJ_BIS_API_KEY = os.getenv(
+    "GJ_BIS_API_KEY",
+    "bN25YqJDY0QChe%2BqqNsdxd%2FYQy3krb4JYe0Vc06Fi4%2FtV%2BH0ECGdD1h%2FNuQF5CdNH0bIxWkfniL4%2FM6ce13GIQ%3D%3D",
+)
+GJ_BIS_BASE_URL = os.getenv("GJ_BIS_BASE_URL", "https://apis.data.go.kr/6290000/gj_bis")
