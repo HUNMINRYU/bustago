@@ -15,7 +15,8 @@
 ### 시스템 구조
 | 레이어 | 내용 |
 |--------|------|
-| **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상)로 LightGBM 모델 학습 |
+| **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상) 기반 학습 |
+| **혼잡도 모델** | **운영 = RandomForest** (`rf_model.pkl` 225KB, 학습 완료) · **보조 = LightGBM** (학습 코드 `train_lgbm.py` 작성, 모델 파일은 광주 현장 데이터 확보 후 생성 예정) — `predict.py`가 LGBM 우선 / RF fallback 자동 선택 |
 | **AI 카운팅** | 광주대 인성관 정류장 — Jetson Orin Nano(YOLOv11+DeepSORT)로 실시간 대기 인원 수집 |
 | **혼잡도 예측** | 서울 학습 모델 → 광주 정류장 직접 적용 (혼잡도 4단계 기준은 국토부 표준으로 동일) |
 | **사용자 인터페이스** | 학생 PWA(혼잡도 + 노선 추천) + 운영자 Admin 대시보드(실시간 카운팅) |
@@ -72,10 +73,10 @@ bustago/
 │   ├── student/            #   학생용 모바일 PWA (혼잡도 + 노선 추천)
 │   ├── admin/              #   운영자 PC 대시보드 (Chart.js, Leaflet.js, 실시간 카운팅 패널)
 │   └── shared/             #   공용 API 래퍼
-├── ml/                     # LightGBM 혼잡도 예측 파이프라인
+├── ml/                     # 혼잡도 예측 파이프라인 (RandomForest 운영 / LightGBM 학습 준비)
 │   ├── data_collection/    #   서울시 API 데이터 수집 (혼잡도·승하차·기상)
 │   ├── preprocessing/      #   전처리 + Feature 결합
-│   └── models/             #   학습 + 예측 (lgbm_model.pkl: 1.7MB, CV 0.9340)
+│   └── models/             #   학습 + 예측 (rf_model.pkl 운영, lgbm_model.pkl 광주 데이터 확보 후 생성 예정)
 ├── hardware/               # Jetson AI 카운팅 (counter.py) + Watchdog 스크립트 (watchdog_jetson/pi.sh)
 ├── docs/                   # 프로젝트 산출물
 │   ├── 01_계획분석/        #   계획서, 요구사항, 업무흐름도, 기술조사
@@ -150,12 +151,17 @@ xdg-open http://localhost:8080/student/index.html           # Linux
 ### 4. ML 모델
 ```bash
 cd ml
-pip install -r ../backend/requirements.txt  # 공용 의존성
+pip install -r ../backend/requirements.txt  # 공용 의존성 (RF 운영용)
+python models/predict.py                     # 혼잡도 예측 테스트 (현재 rf_model.pkl 사용)
+
+# LightGBM 학습 (선택 — 광주 현장 데이터 확보 후 권장)
 pip install lightgbm                         # LightGBM 별도 설치
 python models/train_lgbm.py --compare       # LightGBM 학습 + RF 성능 비교
-python models/predict.py                     # 혼잡도 예측 테스트
-# (RF fallback: python models/train_rf.py)
+
+# RandomForest 재학습 (필요 시)
+python models/train_rf.py
 ```
+> 현재 운영 모델은 `rf_model.pkl` (학습 완료, 225KB). `lgbm_model.pkl`이 존재하면 `predict.py`가 자동으로 LGBM을 우선 사용합니다.
 
 ### 5. AI 카운팅 (Jetson / PC 웹캠)
 ```bash

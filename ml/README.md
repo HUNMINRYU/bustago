@@ -1,7 +1,10 @@
 # 🤖 ML — 혼잡도 예측 모델
 
-> 서울시 공공데이터로 학습한 LightGBM 모델을 광주대학교 정류장 환경에 직접 적용합니다.
-> (RandomForest는 lgbm_model.pkl 없을 경우 자동 fallback으로 사용)
+> 서울시 공공데이터 기반 혼잡도 4단계 분류 파이프라인.
+>
+> - **현재 운영**: RandomForest (`rf_model.pkl` 225KB, 학습 완료) ← Backend가 사용
+> - **보조 (학습 인프라 완료)**: LightGBM (`train_lgbm.py` 작성됨, 모델 파일은 광주 현장 데이터 확보 후 생성 예정)
+> - **자동 선택**: `predict.py` 호출 시 `lgbm_model.pkl`이 존재하면 LGBM, 없으면 `rf_model.pkl` fallback
 
 ---
 
@@ -18,10 +21,10 @@ ml/
 ├── preprocessing/
 │   └── build_features.py           # 전처리 + Feature 결합
 ├── models/
-│   ├── train_lgbm.py               # LightGBM 학습 (주 모델) — --compare 옵션으로 RF 비교 가능
-│   ├── train_rf.py                 # Random Forest 학습 (fallback용)
-│   ├── predict.py                  # 예측 인터페이스 (lgbm_model.pkl 우선, rf fallback)
-│   ├── lgbm_model.pkl              # LightGBM 학습 모델 (1.7MB) ← 주 모델
+│   ├── train_rf.py                 # RandomForest 학습 — **현재 운영 모델** 생성
+│   ├── rf_model.pkl                # RandomForest 학습 모델 (225KB) ← **운영 중**
+│   ├── train_lgbm.py               # LightGBM 학습 — `--compare` 옵션으로 RF 비교 가능 (광주 데이터 확보 후 실행 예정)
+│   ├── predict.py                  # 예측 인터페이스 (lgbm_model.pkl 존재 시 우선, 없으면 rf fallback)
 │   └── train_lgbm_fallback.py      # ML 패키지 미설치 환경 대응 스크립트
 └── README.md
 ```
@@ -39,7 +42,7 @@ collect_weather  ───┘                     └─→ train_rf.py (fallbac
 
 1. **데이터 수집** (`data_collection/`): 서울시 API, 승하차 이력, 기상청 API에서 원시 데이터 수집
 2. **전처리** (`preprocessing/`): 결측치 처리, 시간대 인코딩, Feature 결합
-3. **모델 학습** (`models/`): LightGBM으로 혼잡도 4단계 분류 학습
+3. **모델 학습** (`models/`): RandomForest로 4단계 분류 학습 (현 운영), LightGBM은 광주 데이터 확보 후 전환 예정
 4. **추론** (`models/predict.py`): Backend에서 호출하는 예측 인터페이스
 
 ---
@@ -48,8 +51,7 @@ collect_weather  ───┘                     └─→ train_rf.py (fallbac
 
 ```bash
 # 1. 의존성 설치
-pip install -r ../backend/requirements.txt
-pip install lightgbm   # LightGBM 별도 설치
+pip install -r ../backend/requirements.txt   # 공용 (RandomForest 운영용)
 
 # 2. 데이터 수집 파이프라인 실행
 python data_collection/pipeline.py
@@ -57,13 +59,15 @@ python data_collection/pipeline.py
 # 3. 전처리 및 Feature 결합
 python preprocessing/build_features.py
 
-# 4. LightGBM 모델 학습 (주 모델)
-python models/train_lgbm.py
+# 4-A. 현재 운영: RandomForest 재학습 (필요 시)
+python models/train_rf.py
 
-# RF vs LightGBM 성능 비교 출력
-python models/train_lgbm.py --compare
+# 4-B. 보조: LightGBM 학습 (광주 데이터 확보 후 권장)
+pip install lightgbm                          # 별도 설치 필요
+python models/train_lgbm.py                   # 학습 → lgbm_model.pkl 생성
+python models/train_lgbm.py --compare         # RF vs LGBM 성능 비교 출력
 
-# 5. 예측 테스트
+# 5. 예측 테스트 (자동 선택: lgbm 우선, 없으면 rf fallback)
 python models/predict.py
 ```
 
@@ -71,24 +75,32 @@ python models/predict.py
 
 ## 📊 모델 사양
 
-### LightGBM (주 모델, 2026-05-07 확정)
+### RandomForest (현재 운영 모델, 2026-03-31 학습)
 
 | 항목 | 값 |
 |------|-----|
+| 알고리즘 | RandomForestClassifier (scikit-learn) |
+| 모델 파일 | `rf_model.pkl` (225 KB) ← **운영 중** |
+| 학습 데이터 | 서울시 공공데이터 합성 (Feature 7개) |
+| 라벨 | 0(여유) / 1(보통) / 2(혼잡) / 3(매우혼잡) |
+
+### LightGBM (학습 인프라 작성 완료, 모델 파일 미생성 — 광주 데이터 확보 후 학습 예정)
+
+| 항목 | 값 (`train_lgbm.py` 기준) |
+|------|-----|
 | 알고리즘 | LGBMClassifier |
 | 하이퍼파라미터 | `n_estimators=300, max_depth=6, learning_rate=0.05, num_leaves=31` |
-| **Accuracy** | **0.9400** |
-| **F1 (macro)** | **0.9319** |
-| **CV (5-fold)** | **0.9340 ± 0.0215** |
-| 모델 크기 | 1.7 MB |
-| 학습 시간 | ~0.15초 |
+| 합성 데이터 벤치마크 (2026-05-07) | Accuracy 0.9400 / F1 (macro) 0.9319 / CV 5-fold 0.9340 ± 0.0215 |
+| 모델 파일 | `lgbm_model.pkl` (학습 실행 후 1.7 MB 예상) ← 현재 **미생성** |
 
-### RF vs LightGBM 벤치마크 (합성 데이터 500행, 2026-05-07 실측)
+### 합성 데이터 벤치마크 (500행, 2026-05-07 실측 — 회의 근거용)
 
-| 모델 | Accuracy | F1 (macro) | 학습시간 |
-|------|:--------:|:----------:|:--------:|
-| RandomForest (fallback) | 0.9000 | 0.8850 | 0.01s |
-| **LightGBM (주 모델)** | **0.9400** | **0.9319** | 0.15s |
+| 모델 | Accuracy | F1 (macro) | 학습시간 | 운영 상태 |
+|------|:--------:|:----------:|:--------:|:---------|
+| **RandomForest** | 0.9000 | 0.8850 | 0.01s | ✅ 운영 중 (`rf_model.pkl`) |
+| LightGBM | **0.9400** | **0.9319** | 0.15s | ⏳ 학습 인프라만 작성, 광주 데이터 확보 후 전환 예정 |
+
+> ⚠️ 위 벤치마크는 합성 데이터 500행 기준이며, 광주 현장 실측 데이터에서의 성능은 별도 검증 필요.
 
 ### 활성 Feature (7개)
 
