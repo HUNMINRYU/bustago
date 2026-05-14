@@ -12,7 +12,7 @@ TS=$(date '+%Y-%m-%d %H:%M:%S')
 
 SERVER_IP="SERVER_IP"          # TODO: 실제 서버 IP로 변경 (예: 192.168.0.100)
 STATION_ID="INS01"
-MODEL="yolov8n.engine"
+MODEL="yolo11n.engine"
 LOG="/var/log/bustago-counter.log"
 
 if pgrep -f "counter.py" > /dev/null 2>&1; then

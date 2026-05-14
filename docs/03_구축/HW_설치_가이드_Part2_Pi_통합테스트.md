@@ -155,7 +155,7 @@ crontab -l
 ### 6.2 E2E 데이터 흐름 확인
 ```bash
 # 1. Jetson에서 counter.py POST 확인
-python3 counter.py --camera 0 --model ~/yolov8n.engine   --server http://SERVER_IP/api/crowd-count   --station-id INS01 --post-interval 10
+python3 counter.py --camera 0 --model ~/yolo11n.engine   --server http://SERVER_IP/api/crowd-count   --station-id INS01 --post-interval 10
 
 # 2. 서버 DB에서 데이터 증가 확인 (서버에서 실행)
 watch -n 5 'sqlite3 backend/bustago.db "SELECT * FROM crowd_counts ORDER BY created_at DESC LIMIT 3;"'
@@ -173,7 +173,7 @@ watch -n 5 'sqlite3 backend/bustago.db "SELECT * FROM crowd_counts ORDER BY crea
 
 | 상황 | 대응 방법 |
 |------|----------|
-| Jetson 미도착 / 고장 | `python3 counter.py --camera 0 --model yolov8n.pt --debug` (PC 웹캠) |
+| Jetson 미도착 / 고장 | `python3 counter.py --camera 0 --model yolo11n.pt --debug` (PC 웹캠) |
 | TensorRT 변환 실패 | `.pt` 모델로 대체 (FPS 낮지만 기능 동작) |
 | Pi 화면 안 나옴 | 노트북 브라우저로 PWA 직접 접속 대체 |
 | WiFi 불안정 | 핫스팟 라우터 + 유선 연결 혼용 |
@@ -188,7 +188,7 @@ watch -n 5 'sqlite3 backend/bustago.db "SELECT * FROM crowd_counts ORDER BY crea
 Jetson 측:
 [ ] JetPack 6.x + CUDA/TensorRT 확인
 [ ] Pi Camera /dev/video0 인식
-[ ] yolov8n.engine 변환 완료
+[ ] yolo11n.engine 변환 완료
 [ ] counter.py 25+ FPS 확인
 [ ] POST /api/crowd-count 10초 간격 200 OK
 [ ] DB crowd_counts 증가 확인

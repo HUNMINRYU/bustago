@@ -151,7 +151,7 @@
   │         노선별 만차 빈도 (1호차~6호차)
   │
   ├──→ [C. 실시간 영상]
-  │      └─ YOLOv8 + DeepSORT 인원 카운팅 오버레이
+  │      └─ YOLOv11 + DeepSORT 인원 카운팅 오버레이
   │         Jetson Orin Nano + Pi Camera v2 (1대, 25~40 FPS)
   │
   └──→ [D. 모델 관리]
