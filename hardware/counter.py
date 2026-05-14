@@ -17,6 +17,8 @@ Usage:
     python counter.py --camera 0 --model yolo11n.pt --debug
 """
 
+from __future__ import annotations
+
 import argparse
 import time
 import logging
@@ -170,6 +172,8 @@ class APIReporter:
 def run_counter(args):
     """메인 카운팅 루프."""
 
+    target_classes = [int(cls.strip()) for cls in args.classes.split(",") if cls.strip()]
+
     # 1) YOLO 모델 로드
     log.info("Loading model: %s", args.model)
     model = YOLO(args.model)
@@ -231,8 +235,8 @@ def run_counter(args):
                 time.sleep(0.1)
                 continue
 
-            # YOLOv11 추론 (사람 클래스만: class 0)
-            results = model(frame, classes=[0], verbose=False, conf=args.conf)
+            # YOLOv11 추론 (기본값: COCO person class 0)
+            results = model(frame, classes=target_classes, verbose=False, conf=args.conf)
 
             # Detection → DeepSORT 입력 형식 변환
             detections = []
@@ -240,7 +244,9 @@ def run_counter(args):
                 for box in result.boxes:
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                     conf = float(box.conf[0])
-                    detections.append(([x1, y1, x2 - x1, y2 - y1], conf, "person"))
+                    cls_id = int(box.cls[0])
+                    cls_name = model.names.get(cls_id, str(cls_id))
+                    detections.append(([x1, y1, x2 - x1, y2 - y1], conf, cls_name))
 
             # DeepSORT 트래킹
             tracks = tracker.update_tracks(detections, frame=frame)
@@ -318,6 +324,8 @@ def parse_args():
                    help="YOLOv11 모델 경로 (.pt 또는 .engine)")
     p.add_argument("--conf", type=float, default=0.5,
                    help="YOLO confidence 임계값 (default: 0.5)")
+    p.add_argument("--classes", default="0",
+                   help="탐지할 클래스 ID 목록, 쉼표로 구분 (default: 0)")
 
     # Line Crossing
     p.add_argument("--in-line", type=float, default=0.7,
