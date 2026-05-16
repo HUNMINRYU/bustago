@@ -128,7 +128,28 @@ git clone https://github.com/HUNMINRYU/bustago.git
 cd bustago
 ```
 
-### 2. 백엔드
+### 2a. Docker Compose로 한 번에 (권장, 2026-05-16~)
+```bash
+# .env 준비 (없으면 .env.example 복사 후 필요한 키 채우기)
+cp .env.example .env  # 한 번만
+
+# MySQL + backend + frontend 동시 기동
+docker compose up -d
+
+# 상태 확인
+docker compose ps                 # mysql healthy, backend healthy 표시
+docker compose logs -f backend    # 로그 추적
+curl http://localhost:5000/api/health
+
+# 종료
+docker compose down               # 컨테이너 제거 (볼륨 보존)
+docker compose down -v            # 데이터까지 초기화 (개발 환경)
+```
+
+> docker compose는 `mysql:8.0`을 자동 띄우고 `backend/schema.sql`로 초기화한다.
+> Backend는 MySQL 연결 실패 시 SQLite로 자동 폴백(backend/models/db.py) — Docker 없이도 동작.
+
+### 2b. 로컬에서 직접 (Docker 없이)
 ```bash
 python -m venv .venv && source .venv/bin/activate  # (Windows: .venv\Scripts\activate)
 cd backend

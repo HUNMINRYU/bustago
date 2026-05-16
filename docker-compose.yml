@@ -1,35 +1,96 @@
-version: "3.8"
+# BUSTAGO 통합 실행
+# =================================
+# `docker compose up -d`로 MySQL + backend + frontend 한 번에 기동.
+# - MySQL 8.0 + healthcheck + schema 자동 초기화
+# - Backend: MySQL 준비 후 시작, 실패 시 SQLite 자동 폴백 (backend/models/db.py)
+# - Frontend: backend healthy 후 시작
+#
+# 2026-05-16 진단 §6 P1 반영 — 기존엔 MySQL 서비스 없어서 backend가 항상 SQLite로 폴백.
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: bustago-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-bustago_root_pw}
+      MYSQL_DATABASE: ${MYSQL_DB:-bustago}
+      MYSQL_USER: ${MYSQL_USER:-bustago}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bustago_pw}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      # 호스트에서 mysql 클라이언트로 접속/디버그 (운영 시 제거 권장)
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 컨테이너 첫 기동 시 자동 실행되는 SQL 파일들 (read-only).
+      # 같은 DB 디렉토리에 데이터가 이미 있으면 init 스크립트는 무시됨 (MySQL 기본 동작).
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test:
+        ["CMD",
+         "mysqladmin",
+         "ping",
+         "-h", "localhost",
+         "-u", "root",
+         "-p${MYSQL_ROOT_PASSWORD:-bustago_root_pw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    container_name: bustago-backend
+    restart: unless-stopped
     ports:
       - "5000:5000"
     env_file:
       - .env
+    environment:
+      # docker network 내에서 MySQL 호스트명은 서비스명 'mysql'.
+      # .env의 MYSQL_HOST가 localhost로 설정돼 있어도 여기서 덮어쓴다.
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-bustago}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bustago_pw}
+      MYSQL_DB: ${MYSQL_DB:-bustago}
+    depends_on:
+      mysql:
+        condition: service_healthy
     volumes:
+      # SQLite 폴백 파일 위치 (MySQL 사용 시 미사용, 그대로 유지).
       - db-data:/app/backend
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"]
+      test:
+        ["CMD",
+         "python", "-c",
+         "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-    restart: unless-stopped
+      start_period: 15s
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    container_name: bustago-frontend
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
 
 volumes:
+  mysql-data:
+    driver: local
   db-data:
     driver: local
