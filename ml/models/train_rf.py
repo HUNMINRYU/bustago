@@ -2,7 +2,8 @@
 BUSTAGO - Random Forest 혼잡도 예측 모델 학습
 Feature DataFrame(train_features.csv)으로 모델을 학습하고 평가한다.
 
-모델: RandomForestClassifier(n_estimators=10, max_depth=10, min_samples_leaf=5, max_features=sqrt)
+모델: RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=5, max_features=sqrt)
+- 2026-05-16 진단 §6 P1 반영: n_estimators 10 → 100 (일반 권장치)
 라벨: 0(여유), 1(보통), 2(혼잡), 3(매우혼잡)
 
 Usage:
@@ -65,10 +66,19 @@ def train_model(df: pd.DataFrame, test_size: float = 0.2):
     )
     print(f"\n[분할] Train: {len(X_train):,}건, Test: {len(X_test):,}건")
 
-    # 모델 학습
-    model = RandomForestClassifier(n_estimators=10, max_depth=10, min_samples_leaf=5, max_features="sqrt", random_state=42)
+    # 모델 학습 (2026-05-16: n_estimators 10→100, 진단 P1)
+    n_features = len(available_features)
+    model = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        min_samples_leaf=5,
+        max_features="sqrt",
+        random_state=42,
+        n_jobs=-1,
+    )
     model.fit(X_train, y_train)
-    print(f"[학습] RandomForest(n_estimators=10, max_depth=10, min_samples_leaf=5, max_features=sqrt, 7 features) 학습 완료")
+    print(f"[학습] RandomForest(n_estimators=100, max_depth=10, min_samples_leaf=5, "
+          f"max_features=sqrt, {n_features} features) 학습 완료")
 
     # 예측 및 평가
     y_pred = model.predict(X_test)
