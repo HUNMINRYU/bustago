@@ -2,10 +2,13 @@ import pytest
 import sys
 import os
 
+import responses
+
 # 프로젝트 루트를 sys.path에 추가
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.app import create_app
+from backend.config import GJ_BIS_BASE_URL
 
 @pytest.fixture
 def client():
@@ -107,16 +110,151 @@ def test_route_recommend_bad_hour(client):
 
 # --- GJ BIS / Stations Tests ---
 
-def test_lines_endpoint_returns_ok_or_502(client):
-    """GET /api/lines 광주 BIS 호출 성공 또는 실패 응답 확인"""
+# 진단 §6 P1 반영 (2026-05-16): 기존 "200 또는 502 OK" 테스트는 네트워크 없을 때
+# 그냥 통과하여 검증력이 없었음. 아래 mock 테스트로 성공/실패 케이스를 분리해
+# 결정론적으로 검증한다. 통합(실 네트워크) 테스트는 옵션 마커로 분리.
+
+
+@pytest.mark.network
+def test_lines_endpoint_integration(client):
+    """[integration] /api/lines 실 광주 BIS 호출 — 네트워크 환경에서만 의미.
+
+    `pytest -m "not network"`로 mock 테스트만 돌릴 수 있다.
+    """
     resp = client.get("/api/lines")
     assert resp.status_code in (200, 502)
 
 
-def test_arrive_endpoint_returns_ok_or_502(client):
-    """GET /api/arrive/<busstop_id> 광주 BIS 호출 성공 또는 실패 응답 확인"""
+@pytest.mark.network
+def test_arrive_endpoint_integration(client):
+    """[integration] /api/arrive/<busstop_id> 실 광주 BIS 호출."""
     resp = client.get("/api/arrive/1981")
     assert resp.status_code in (200, 502)
+
+
+@responses.activate
+def test_lines_endpoint_mocked_success(client):
+    """/api/lines — mock 200 응답이 데이터로 정상 변환되는지."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "LINE_LIST": {
+                    "ITEM": [
+                        {"LINE_ID": 100, "LINE_NO": "419", "LINE_NAME": "419번"},
+                        {"LINE_ID": 101, "LINE_NO": "518", "LINE_NAME": "518번"},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["count"] == 2
+    assert body["data"]["items"][0]["LINE_NO"] == "419"
+
+
+@responses.activate
+def test_lines_endpoint_mocked_upstream_failure(client):
+    """/api/lines — upstream 500 시 502 반환 + 명시적 메시지."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        json={"error": "upstream broken"},
+        status=500,
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 502
+    assert resp.json["status"] == "error"
+    assert "광주 BIS" in resp.json["message"]
+
+
+@responses.activate
+def test_lines_endpoint_mocked_connection_error(client):
+    """/api/lines — requests 자체 예외 발생 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        body=ConnectionError("simulated network down"),
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 502
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_success(client):
+    """/api/arrive/<id> — mock 200 응답에서 ARRIVE_LIST 정상 추출."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "ARRIVE_LIST": {
+                    "ITEM": [
+                        {"LINE_NAME": "419번", "REMAIN_MIN": 3, "REMAIN_STOP": 1, "LOW_BUS": 1},
+                        {"LINE_NAME": "518번", "REMAIN_MIN": 12, "REMAIN_STOP": 5, "LOW_BUS": 0},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["busstop_id"] == 1981
+    assert len(body["data"]["items"]) == 2
+    assert body["data"]["items"][0]["LOW_BUS"] == 1
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_empty_item(client):
+    """/api/arrive/<id> — 도착 예정 없을 때 빈 목록 200."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-200", "MESSAGE": "no data"},
+                "ARRIVE_LIST": {},
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 200
+    assert resp.json["data"]["items"] == []
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_failure(client):
+    """/api/arrive/<id> — upstream timeout/실패 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        body=Exception("simulated timeout"),
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 502
+
+
+def test_arrive_endpoint_empty_key_returns_502(client, monkeypatch):
+    """/api/arrive/<id> — GJ_BIS_API_KEY가 비어있으면 외부 호출 없이 502.
+
+    config 직접 setattr이 아닌 stations 모듈 import 후 GJ_BIS_API_KEY 패치.
+    _call_gj_bis가 빈 키 가드 (2026-05-16 추가)를 타는지 검증.
+    """
+    from backend.routes import stations
+    monkeypatch.setattr(stations, "GJ_BIS_API_KEY", "")
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 502
 
 
 def test_gj_stops_returns_static_list(client):
