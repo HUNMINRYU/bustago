@@ -94,14 +94,15 @@ def route_recommend():
     # 각 노선 혼잡도 예측 (ML 모델 사용, 실패 시 시간 기반 fallback)
     result_routes = []
     for route in routes:
+        # 2026-05-16: weekday는 받아두지만 ML feature 아님 (predict.py가 무시).
         features = {
             "hour": hour,
-            "weekday": weekday,
             "weather": weather_feat["weather"],
             "temperature": weather_feat["temperature"],
             "prev_boarding": 0,
             "prev_alighting": 0,
             "route_count": route["route_count"],
+            "weekday": weekday,  # 응답 echo용
         }
         try:
             from ml.models.predict import predict_congestion

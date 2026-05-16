@@ -34,7 +34,8 @@ except ImportError as exc:
     LGBMClassifier = None
 
 FEATURE_COLS = [
-    "hour", "weekday",
+    # 2026-05-16: weekday 제거 (원본 데이터에 요일 정보 없음 — 진단 P0)
+    "hour",
     "weather", "temperature",
     "prev_boarding", "prev_alighting",
     "route_count",

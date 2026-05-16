@@ -10,7 +10,6 @@ Usage:
 
     result = predict_congestion({
         "hour": 8,
-        "weekday": 1,
         "weather": 0,
         "temperature": 20.0,
         "prev_boarding": 50,
@@ -18,15 +17,19 @@ Usage:
         "route_count": 12,
     })
     # result: {"level": 2, "label": "혼잡", "probabilities": [0.1, 0.2, 0.5, 0.2]}
+
+Note:
+    2026-05-16 진단 P0 반영으로 weekday feature를 제거함 (서울 공공데이터에
+    요일 정보 없음). features dict에 'weekday'가 들어 있으면 무시함.
 """
 
 import os
 import numpy as np
 import joblib
 
-# Feature 컬럼 순서 (build_features.py 기준)
+# Feature 컬럼 순서 (build_features.py 기준, 2026-05-16 weekday 제거)
 FEATURE_COLS = [
-    "hour", "weekday",
+    "hour",
     "weather", "temperature",
     "prev_boarding", "prev_alighting",
     "route_count",
@@ -75,8 +78,9 @@ def predict_congestion(features: dict, model_path: str = None) -> dict:
 
     Args:
         features: dict - Feature 값 딕셔너리
-            필수 키: hour, weekday, weather, temperature,
+            필수 키: hour, weather, temperature,
                      prev_boarding, prev_alighting, route_count
+            (weekday는 받아도 무시함 — 2026-05-16 진단 P0)
         model_path: str - 모델 파일 경로 (기본: rf_model.pkl)
 
     Returns:
@@ -154,7 +158,6 @@ if __name__ == "__main__":
     # 테스트 예측
     test_input = {
         "hour": 8,
-        "weekday": 1,
         "weather": 0,
         "temperature": 20.0,
         "prev_boarding": 50,

@@ -20,7 +20,9 @@ _CACHE_TTL = 300
 
 
 def _cache_key(features: dict) -> tuple:
-    return (features["hour"], features["weekday"], features["weather"],
+    # 2026-05-16: weekday는 ML feature에서 제거되었지만 API 호환성 위해 cache key에 유지
+    # (DB 컬럼에는 그대로 저장됨).
+    return (features["hour"], features.get("weekday", -1), features["weather"],
             features.get("temperature", 20.0), features["route_count"])
 
 
@@ -127,15 +129,16 @@ def predict():
     weather_val = weather_row["weather"] if weather_row else 0
     temperature_val = weather_row["temperature"] if weather_row else 20.0
 
-    # 피처 구성 (7개 -- rain/boarding/alighting 제거됨, Autoresearch 2026-03-31)
+    # 피처 구성: ML 6개 (2026-05-16 weekday 제거, 진단 P0).
+    # weekday는 API/DB 호환성 위해 받아두지만 ML 호출에는 미포함.
     features = {
         "hour": hour,
-        "weekday": weekday,
         "weather": weather_val,
         "temperature": temperature_val,
         "prev_boarding": prev_boarding,
         "prev_alighting": prev_alighting,
         "route_count": 5,
+        "weekday": weekday,  # ML 모델은 무시. 캐시 키와 DB 컬럼 호환용.
     }
 
     prediction = _cached_predict(features)
