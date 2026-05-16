@@ -105,6 +105,9 @@ def weather_current():
 
 def _call_gj_bis(endpoint: str, params: dict = None) -> dict | None:
     """광주광역시 버스정보시스템 API 호출 헬퍼."""
+    if not GJ_BIS_API_KEY:
+        # 키 누락 — config.py에서 시작 시 경고함. 여기서는 조용히 None 반환 (502 폴백 트리거).
+        return None
     try:
         import requests
         url = f"{GJ_BIS_BASE_URL}/{endpoint}?serviceKey={GJ_BIS_API_KEY}"
