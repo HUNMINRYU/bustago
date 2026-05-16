@@ -68,3 +68,20 @@ def test_extract_frames_creates_outdir(tmp_path):
 
     assert out_dir.exists()
     assert any(out_dir.glob("*.jpg"))
+
+
+def test_extract_frames_invalid_video(tmp_path):
+    missing = tmp_path / "nope.mp4"
+    out_dir = tmp_path / "frames"
+    with pytest.raises(RuntimeError):
+        extract_frames(missing, out_dir, interval_sec=1.0)
+
+
+def test_extract_frames_invalid_interval(tmp_path):
+    video = tmp_path / "v.mp4"
+    _make_video(video, num_frames=5, fps=5)
+    out_dir = tmp_path / "frames"
+    with pytest.raises(ValueError):
+        extract_frames(video, out_dir, interval_sec=0)
+    with pytest.raises(ValueError):
+        extract_frames(video, out_dir, interval_sec=-1.0)

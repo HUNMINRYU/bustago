@@ -20,6 +20,8 @@ def extract_frames(video_path: Path, out_dir: Path, interval_sec: float = 2.0) -
         추출된 프레임 수
     """
     video_path = Path(video_path)
+    if interval_sec <= 0:
+        raise ValueError(f"interval_sec must be positive, got {interval_sec}")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -37,17 +39,18 @@ def extract_frames(video_path: Path, out_dir: Path, interval_sec: float = 2.0) -
 
     count = 0
     frame_idx = 0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        if frame_idx % interval_frames == 0:
-            out_path = out_dir / f"{stem}_{count:06d}.jpg"
-            cv2.imwrite(str(out_path), frame)
-            count += 1
-        frame_idx += 1
-
-    cap.release()
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            if frame_idx % interval_frames == 0:
+                out_path = out_dir / f"{stem}_{count:06d}.jpg"
+                cv2.imwrite(str(out_path), frame)
+                count += 1
+            frame_idx += 1
+    finally:
+        cap.release()
     return count
 
 
