@@ -56,9 +56,12 @@ research_log.txt
 *.onnx
 
 # YOLO 학습/평가 산출물
-datasets/
+# 디렉토리 자체가 아닌 "내용물"을 제외해야 negation이 동작 (git 규칙).
+datasets/**
 !datasets/.gitkeep
+!datasets/*/
 !datasets/**/README.md
 !datasets/**/*_groundtruth.json
-runs/
+runs/**
 !runs/.gitkeep
+!runs/*/
