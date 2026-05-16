@@ -9,6 +9,12 @@ def parse_args():
     parser.add_argument("--imgsz", type=int, default=960, help="Training image size (default: 960)")
     parser.add_argument("--batch", type=int, default=16, help="Training batch size (default: 16)")
     parser.add_argument("--device", default=0, help="Training device, e.g. 0, cpu, or 0,1 (default: 0)")
+    parser.add_argument("--data", default="hardware/configs/bustago_person.yaml",
+                        help="Dataset YAML path (default: public baseline config)")
+    parser.add_argument("--model", default="yolo11n.pt",
+                        help="Pretrained model file. yolo11n.pt 권장 (counter.py 배포와 일치)")
+    parser.add_argument("--name", default="yolo11-person",
+                        help="Run name written under runs/bustago/")
     return parser.parse_args()
 
 
@@ -17,9 +23,9 @@ def main():
 
     from ultralytics import YOLO
 
-    model = YOLO("yolo11s.pt")
+    model = YOLO(args.model)
     model.train(
-        data="hardware/configs/bustago_person.yaml",
+        data=args.data,
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
@@ -28,7 +34,7 @@ def main():
         cos_lr=True,
         close_mosaic=10,
         project="runs/bustago",
-        name="yolo11-person",
+        name=args.name,
     )
 
 
