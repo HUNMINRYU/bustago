@@ -10,3 +10,4 @@ requests>=2.31
 scikit-learn>=1.0
 
 aiohttp>=3.9
+pytest>=8.0
