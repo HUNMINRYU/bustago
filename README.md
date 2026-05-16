@@ -1,5 +1,7 @@
 # 🚌 BUSTAGO - 버스 정류장 혼잡도 예측 시스템
 
+[![CI](https://github.com/HUNMINRYU/bustago/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/HUNMINRYU/bustago/actions/workflows/ci.yml)
+
 > "30분 후, 정류장이 여유로워집니다"  
 > 서울시 공공데이터로 설계한 결합 모델을 광주 환경(대학 셔틀 + 시내버스)에 적용하여,  
 > 승차장 혼잡도를 예측하고 학생의 탑승 의사결정을 지원합니다.
