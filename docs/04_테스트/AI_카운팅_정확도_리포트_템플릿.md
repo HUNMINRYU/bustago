@@ -1,7 +1,8 @@
 # AI 카운팅 정확도 리포트 (데이터 기반 평가)
 
-> 버전: v2.0
-> 작성일: [실측 완료 후 기입]
+> 버전: v2.1
+> 최초 v2.0: 2026-05-16 (수동 카운팅 제외 재구성)
+> 최종 갱신: 2026-05-16 (baseline / public val 실측치 1세트 추가)
 > 평가 방식: 실시간 수동 카운팅 비교를 사용하지 않고, 라벨링된 데이터셋과 녹화 영상의 사후 라벨 기준으로 평가
 > 근거 spec: `docs/superpowers/specs/2026-05-16-yolo-data-track-design.md`
 
@@ -61,8 +62,9 @@
 
 | Split | 출처 | 매수 | 라벨링 담당 |
 |---|---|---|---|
-| public train | [Phase 1-1에서 선택된 Roboflow 데이터셋] | [기입] | 외부 |
-| public val | 동일 | [기입] | 외부 |
+| public train | CrowdHuman BlurHumanFinal v3 (Keio DBA team, CC BY 4.0) | 19,204 | 외부 |
+| public val | 동일 | 1,857 | 외부 |
+| public test | 동일 (별도 split) | 929 | 외부 |
 | self_v1 train | 광주대 INS01 자체촬영 (5/21 이후) | [기입] | 류훈민 (auto-label + 검수) |
 | self_v1 val | 동일 | [기입] | 동일 |
 
@@ -82,15 +84,26 @@
 
 | 모델 / 조건 | Precision | Recall | mAP50 | mAP50-95 | 판단 |
 |---|---|---|---|---|---|
-| YOLO11n baseline (yolo11n.pt) | [기입] | [기입] | [기입] | [기입] | 기준선 |
+| YOLO11n baseline (yolo11n.pt) | [기입] | [기입] | [기입] | [기입] | 기준선 (self_v1 val) — Phase 4 이후 측정 |
 | Fine-tuned 1차 (자체 데이터) | [기입] | [기입] | [기입] | [기입] | 개선 여부 |
 | Fine-tuned 2차 (+ 증강) | [기입] | [기입] | [기입] | [기입] | 최종 후보 |
 
+> self_v1 val은 Phase 3 (5/22~5/24) 이후 생성된다. 현재(2026-05-16)는 public val 결과만 확보 가능.
+
 부록: baseline의 public val 성능 (도메인 일반화 참조)
 
-| 모델 / val | Precision | Recall | mAP50 | mAP50-95 |
-|---|---|---|---|---|
-| YOLO11n baseline / public val | [기입] | [기입] | [기입] | [기입] |
+| 모델 / val | Precision | Recall | mAP50 | mAP50-95 | 측정일 |
+|---|---|---|---|---|---|
+| YOLO11n baseline / public val (CrowdHuman BlurHuman v3) | 0.663 | 0.395 | 0.458 | 0.258 | 2026-05-16 |
+
+**관찰 (2026-05-16)**:
+- val 1,857장 / 인스턴스 54,626건 (avg 29.4 person/image — CrowdHuman 군중 밀집 특성)
+- Recall 0.395: yolo11n COCO 사전학습이 dense crowd/가려진 인물을 많이 놓침
+- Precision 0.663: 검출한 것 중 66%는 맞음
+- 추론 속도 57.9ms/image (CPU, Intel i9-10900F)
+- 광주대 정류장 환경(2~5명, 가려짐 적음)은 CrowdHuman보다 단순하므로
+  self_v1 val에서는 baseline 수치가 이 결과보다 높게 나올 가능성 큼.
+  fine-tune의 효과는 self_v1 val 결과로 판단해야 함.
 
 ### 4.2 Counting 결과
 
@@ -107,6 +120,7 @@
 | 모델 / 입력 | FPS | 추론 ms/frame | End-to-end ms | 디바이스 |
 |---|---|---|---|---|
 | baseline / USB웹캠 640x480 | 35 | 28 | [기입] | Jetson Orin Nano (2026-05-16 측정) |
+| baseline / CrowdHuman val 평균 | 17 | 57.9 | — | Intel i9-10900F CPU (2026-05-16, val 시 측정) |
 | fine-tune1 / [동일] | [기입] | [기입] | [기입] | [기입] |
 | fine-tune2 / [동일] | [기입] | [기입] | [기입] | [기입] |
 | TensorRT engine / [기입] | [기입] | [기입] | [기입] | [기입] (선택) |
@@ -168,3 +182,4 @@
 |---|---|---|---|
 | v1.0 | [최초] | 실시간 AI vs 수동 카운팅 비교 템플릿 | 박건우 |
 | v2.0 | 2026-05-16 | 수동 실시간 카운팅 제외, 데이터 기반 평가로 전환. Detection/Counting/Runtime 3축 재구성. spec 근거 추가. | 류훈민 |
+| v2.1 | 2026-05-16 | baseline yolo11n.pt × CrowdHuman BlurHuman v3 public val 실측치 1세트 추가 (P 0.663 / R 0.395 / mAP50 0.458 / mAP50-95 0.258). §3.1 출처·매수 채움. §4.3에 CPU 추론 속도 추가. self_v1 val 결과는 Phase 4 이후. | 류훈민 |
