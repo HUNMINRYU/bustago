@@ -20,14 +20,21 @@ def compute_error_rate(ai: int, gt: int) -> Optional[float]:
     return abs(ai - gt) / gt * 100.0
 
 
+def _fmt_pct(x):
+    return f"{x:.1f}%" if x is not None else "N/A"
+
+
 def load_groundtruth(path: Path) -> dict:
     """*_groundtruth.json에서 ground_truth.count_in/board 추출."""
-    data = json.loads(Path(path).read_text())
-    gt = data["ground_truth"]
-    return {
-        "count_in": int(gt["count_in"]),
-        "count_board": int(gt["count_board"]),
-    }
+    try:
+        data = json.loads(Path(path).read_text())
+        gt = data["ground_truth"]
+        return {
+            "count_in": int(gt["count_in"]),
+            "count_board": int(gt["count_board"]),
+        }
+    except (KeyError, ValueError, json.JSONDecodeError) as e:
+        raise ValueError(f"Invalid groundtruth JSON {path}: {e}") from e
 
 
 def build_comparison_row(model_name: str, video_name: str,
@@ -78,28 +85,30 @@ def run_counter_on_video(video_path: Path, model_path: Path,
     tracker = DeepSort(max_age=30, n_init=3, max_cosine_distance=0.3)
     yolo = YOLO(str(model_path))
 
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
 
-        results = yolo.predict(source=frame, classes=[0], verbose=False)
-        detections = []
-        if results and results[0].boxes is not None:
-            for box, conf in zip(results[0].boxes.xyxy.cpu().numpy(),
-                                 results[0].boxes.conf.cpu().numpy()):
-                x1, y1, x2, y2 = box
-                detections.append(([x1, y1, x2 - x1, y2 - y1], float(conf), 0))
+            results = yolo.predict(source=frame, classes=[0], verbose=False)
+            detections = []
+            if results and results[0].boxes is not None:
+                for box, conf in zip(results[0].boxes.xyxy.cpu().numpy(),
+                                     results[0].boxes.conf.cpu().numpy()):
+                    x1, y1, x2, y2 = box
+                    detections.append(([x1, y1, x2 - x1, y2 - y1], float(conf), 0))
 
-        tracks = tracker.update_tracks(detections, frame=frame)
-        for tr in tracks:
-            if not tr.is_confirmed():
-                continue
-            l, t, r, b = tr.to_ltrb()
-            cy = (t + b) / 2
-            counter.update(int(tr.track_id), cy)
+            tracks = tracker.update_tracks(detections, frame=frame)
+            for tr in tracks:
+                if not tr.is_confirmed():
+                    continue
+                l, t, r, b = tr.to_ltrb()
+                cy = (t + b) / 2
+                counter.update(int(tr.track_id), cy)
+    finally:
+        cap.release()
 
-    cap.release()
     return {"count_in": counter.count_in, "count_board": counter.count_board}
 
 
@@ -126,8 +135,8 @@ def main():
                                     ai["count_in"], ai["count_board"],
                                     gt["count_in"], gt["count_board"])
         rows.append(row)
-        print(f"  IN: {row['ai_in']}/{row['gt_in']} ({row['in_error_pct']:.1f}%)  "
-              f"BOARD: {row['ai_board']}/{row['gt_board']} ({row['board_error_pct']:.1f}%)")
+        print(f"  IN: {row['ai_in']}/{row['gt_in']} ({_fmt_pct(row['in_error_pct'])})  "
+              f"BOARD: {row['ai_board']}/{row['gt_board']} ({_fmt_pct(row['board_error_pct'])})")
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
