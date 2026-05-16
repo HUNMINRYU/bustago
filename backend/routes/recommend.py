@@ -3,12 +3,15 @@ BUSTAGO Backend -- /api/route-recommend endpoint
 """
 
 import json
+import logging
 import re
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
 from backend.extensions import limiter
+
+log = logging.getLogger(__name__)
 
 recommend_bp = Blueprint("recommend", __name__)
 
@@ -88,8 +91,10 @@ def route_recommend():
                 "weather": row["weather"] or 0,
                 "temperature": float(row["temperature"] or 20.0),
             }
-    except Exception:
-        pass
+    except Exception as e:
+        # weather_cache 조회 실패는 기본값(weather=0, temp=20)으로 폴백.
+        # 노선 추천 자체는 진행해야 하므로 로깅만 하고 계속.
+        log.warning("weather_cache 조회 실패, 기본값 사용: %s", e)
 
     # 각 노선 혼잡도 예측 (ML 모델 사용, 실패 시 시간 기반 fallback)
     result_routes = []

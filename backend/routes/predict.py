@@ -3,6 +3,7 @@ BUSTAGO Backend -- /api/predict 엔드포인트
 LRU Cache로 동일 피처 조합의 중복 예측 요청 시 ML 모델 호출 없이 즉시 반환.
 """
 
+import logging
 import re
 import time
 from datetime import datetime
@@ -11,6 +12,8 @@ from flask import Blueprint, request, jsonify, abort
 from backend.models.db import fetchone, execute
 from backend.config import MODEL_PATH
 from backend.extensions import limiter
+
+log = logging.getLogger(__name__)
 
 predict_bp = Blueprint("predict", __name__)
 
@@ -156,8 +159,13 @@ def predict():
             (station_id, hour, weekday, prediction["level"], prediction["label"],
              str(prediction["probabilities"])),
         )
-    except Exception:
-        pass  # DB 저장 실패해도 응답은 반환
+    except Exception as e:
+        # 예측 결과 DB 저장 실패는 응답 자체를 막지 않는다 (조회/관찰용 데이터).
+        # 단, 원인은 반드시 로깅하여 사일런트 실패를 방지.
+        log.warning(
+            "predictions INSERT 실패 station_id=%s hour=%s: %s",
+            station_id, hour, e,
+        )
 
     return jsonify({
         "status": "ok",

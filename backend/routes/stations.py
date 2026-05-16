@@ -3,12 +3,15 @@ BUSTAGO Backend -- /api/stations, /api/weather/current, /api/arrive, /api/lines 
 """
 
 import json
+import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from backend.models.db import fetchall, fetchone, execute
 from backend.config import WEATHER_API_KEY, WEATHER_API_URL, GJ_BIS_API_KEY, GJ_BIS_BASE_URL
 from backend.extensions import limiter
+
+log = logging.getLogger(__name__)
 
 stations_bp = Blueprint("stations", __name__)
 
@@ -83,8 +86,10 @@ def weather_current():
                     "data": {**weather_data, "cached": False},
                     "timestamp": now.isoformat(),
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            # 기상청 API 호출 또는 weather_cache INSERT 실패 → 아래 기본값 폴백.
+            # 응답은 막지 않되 원인은 기록.
+            log.warning("weather API/cache 실패, 기본값으로 폴백: %s", e)
 
     # API 키 없거나 호출 실패 시 기본값
     default_weather = {
@@ -115,7 +120,8 @@ def _call_gj_bis(endpoint: str, params: dict = None) -> dict | None:
         if res.status_code == 200:
             return res.json()
     except Exception as e:
-        print(f"[GJ BIS 오류] {endpoint}: {e}")
+        # print → log.warning으로 교체 (silent 아니지만 logger 일관성).
+        log.warning("GJ BIS API 호출 실패 endpoint=%s: %s", endpoint, e)
     return None
 
 
@@ -190,8 +196,9 @@ def _get_current_weather() -> dict | None:
         )
         if cached:
             return {"weather": cached["weather"], "temperature": cached["temperature"]}
-    except Exception:
-        pass
+    except Exception as e:
+        # weather_cache 조회 실패 → None 반환으로 호출자가 기본값 폴백 처리.
+        log.warning("_get_current_weather DB 조회 실패: %s", e)
     return None
 
 

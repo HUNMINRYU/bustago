@@ -3,12 +3,15 @@ BUSTAGO Backend -- /api/crowd-count 엔드포인트
 Jetson 디바이스에서 전송하는 군중 카운팅 데이터를 수신·조회.
 """
 
+import logging
 import re
 from datetime import datetime
 from flask import Blueprint, request, jsonify, abort
 
 from backend.models.db import fetchone, fetchall, execute
 from backend.extensions import limiter
+
+log = logging.getLogger(__name__)
 
 crowd_bp = Blueprint("crowd", __name__)
 
@@ -55,7 +58,13 @@ def post_crowd_count():
             "VALUES (?, ?, ?, ?, ?)",
             (station_id, count_in, count_board, current_waiting, source),
         )
-    except Exception:
+    except Exception as e:
+        # crowd_counts INSERT 실패는 클라이언트(Jetson)에 500을 반환해 재시도 유도.
+        # 원인은 운영자가 확인할 수 있게 반드시 로깅.
+        log.error(
+            "crowd_counts INSERT 실패 station_id=%s in=%s board=%s: %s",
+            station_id, count_in, count_board, e,
+        )
         abort(500, description="Failed to save crowd count")
 
     return jsonify({
