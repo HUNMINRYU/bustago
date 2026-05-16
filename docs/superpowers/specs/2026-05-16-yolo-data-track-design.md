@@ -83,7 +83,7 @@ bustago/
 │       ├── README.md                      # 데이터 출처·라이선스·라벨링 규칙 (Git)
 │       ├── public_baseline/{images,labels}/{train,val}/
 │       ├── self_v1/
-│       │   ├── raw_videos/                # 외장 SSD에만 보관
+│       │   ├── raw_videos/                # 로컬 디스크 보관 (.gitignore)
 │       │   ├── frames/
 │       │   └── {images,labels}/{train,val}/
 │       └── eval_videos/
@@ -190,7 +190,7 @@ bustago/
 | Step | 산출 |
 |---|---|
 | 2-1 | 시연 통과 + 디버그 영상 |
-| 2-2 | 동의 시간대 raw mp4 (외장 SSD, 30분~1시간) |
+| 2-2 | 동의 시간대 raw mp4 (`datasets/bustago_person/self_v1/raw_videos/`, 30분~1시간) |
 | 2-3 | raw 영상 이중 백업 (Jetson SSD + 류훈민 PC) |
 
 ### Phase 3 (5/22~5/24) — 자체 데이터 가공
@@ -332,18 +332,27 @@ baseline은 2026-05-16에 이미 측정됨(28ms / 35 FPS standalone). fine-tune�
 | `datasets/.gitkeep`, `runs/.gitkeep` | ✅ | 디렉토리 보존 |
 | `datasets/bustago_person/README.md` | ✅ | 데이터 메타 |
 | `eval_videos/*_groundtruth.json` | ✅ | 라벨 자산 |
-| `datasets/bustago_person/**/{images,labels}/`, `raw_videos/*.mp4` | ❌ | 외장 SSD/NAS |
-| `runs/**`, `*.pt`, `*.engine`, `*.onnx` | ❌ | 학습 머신 로컬 + SSD 백업 |
+| `datasets/bustago_person/**/{images,labels}/`, `raw_videos/*.mp4` | ❌ | 로컬 디스크 (.gitignore) |
+| `runs/**`, `*.pt`, `*.engine`, `*.onnx` | ❌ | 학습 머신 로컬 (선택적으로 외장 디스크 백업) |
 
-## 10. 외장 SSD 보관 구조
+## 10. 로컬 보관 구조 (Git 외)
+
+데이터는 프로젝트 디렉토리 내부에 두되 `.gitignore`로 커밋 제외. 외장 SSD는 필수 아님 —
+디스크 여유가 충분하면 내장 디스크만으로 진행 가능.
 
 ```
-/media/<USER>/BUSTAGO_DATA/
-├── datasets/bustago_person/{public_baseline, self_v1}/
-├── raw_videos/2026-05-21_demo_INS01.mp4
-├── eval_videos/video01.mp4
-└── models_backup/{yolo11n.pt, self_v1_finetune_best.pt, self_v1_augmented_best.pt}
+<프로젝트 루트>/datasets/bustago_person/
+├── public_baseline/        # CrowdHuman 등 공개 데이터 (1.3GB)
+├── self_v1/
+│   └── raw_videos/2026-05-21_demo_INS01.mp4
+└── eval_videos/video01.mp4
+
+<프로젝트 루트>/runs/bustago/  # ultralytics 학습/평가 산출물
+~/bustago_backup/raw_videos/   # 선택: 2차 백업 (record_demo.sh 자동 rsync)
 ```
+
+**SSD를 쓰고 싶을 때**: `record_demo.sh --output /media/.../file.mp4`로 출력 경로만 바꾸면 됨.
+`hardware/configs/bustago_person.yaml`의 `path:`도 절대경로로 바꾸거나 심볼릭 링크 사용.
 
 폐기 시점: 2026-12-31 (촬영_동의_및_삭제_절차.md §6과 일치).
 
@@ -367,7 +376,7 @@ baseline은 2026-05-16에 이미 측정됨(28ms / 35 FPS standalone). fine-tune�
 ## 13. 사전 조건
 
 - RTX 3080 PC의 CUDA/PyTorch 환경 (Phase 4 전까지 검증)
-- 외장 SSD 1개 (BUSTAGO_DATA 라벨)
+- 디스크 여유 ≥ 10GB (raw 영상 + 데이터셋 + 모델). 부족 시 외장 디스크 별도 마련.
 - 시연 안내문 부착 권한 (광주대 인성관 정류장 INS01)
 - Roboflow 또는 LabelImg 계정 (Phase 3-3 라벨 검수용)
 

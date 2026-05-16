@@ -14,7 +14,7 @@ bustago_person/
 │   ├── valid/{images,labels}/   #  1,857장
 │   └── test/{images,labels}/    #    929장
 ├── self_v1/              # Phase 3: 광주대 자체촬영 (fine-tune용)
-│   ├── raw_videos/       # 외장 SSD 보관, Git X
+│   ├── raw_videos/       # 로컬 디렉토리, Git ignore (.gitignore datasets/**)
 │   ├── frames/
 │   ├── images/{train,val}/
 │   └── labels/{train,val}/
@@ -50,7 +50,7 @@ CrowdHuman은 군중 밀집·가려짐이 많은 데이터셋이라 yolo11n(COCO
 
 ## 트래킹 정책
 
-- `**/*.{jpg,png,mp4}`: Git ignore (외장 SSD `/media/<USER>/BUSTAGO_DATA/`)
+- `**/*.{jpg,png,mp4}`: Git ignore (`.gitignore`의 `datasets/**` 패턴). 로컬 디스크 보관. 필요 시 외장 SSD/HDD에 별도 백업.
 - `**/*_groundtruth.json`: Git 트래킹 (라벨 자산)
 - 본 README: Git 트래킹
 

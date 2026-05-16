@@ -8,11 +8,13 @@
 # 동작:
 #   - /dev/video0 (USB 웹캠 또는 CSI 카메라) 입력
 #   - libx264 ultrafast 인코딩 (CPU 부담 최소)
-#   - 외장 SSD에 1차 저장 + 로컬 백업 디렉토리에 2차 백업 (rsync, 종료 시)
+#   - 프로젝트 내 datasets/bustago_person/self_v1/raw_videos/에 1차 저장
+#     (.gitignore로 트래킹 제외됨)
+#   - ~/bustago_backup/raw_videos/에 2차 백업 (rsync, 종료 시 — 옵션)
 #   - 종료 사유와 동의 시간대 정보를 동일 stem .meta.json 로그로 기록
 #
 # 사용:
-#   hardware/record_demo.sh                 # 1시간 녹화, 외장 SSD 기본 경로
+#   hardware/record_demo.sh                 # 1시간 녹화, 프로젝트 기본 경로
 #   hardware/record_demo.sh --duration 1800 # 30분
 #   hardware/record_demo.sh --output /path/to/file.mp4
 #   hardware/record_demo.sh --dry-run       # 명령만 출력
@@ -29,8 +31,11 @@ DEFAULT_RESOLUTION="1280x720"
 DEFAULT_FPS=15
 
 USER_NAME="${USER:-$(whoami)}"
-DEFAULT_SSD_DIR="/media/${USER_NAME}/BUSTAGO_DATA/raw_videos"
-DEFAULT_BACKUP_DIR="${HOME}/PC_BACKUP/raw_videos"
+# 프로젝트 루트 기준 상대경로. 스크립트 실행 위치 무관하게 절대경로로 변환.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DEFAULT_OUTPUT_DIR="${PROJECT_ROOT}/datasets/bustago_person/self_v1/raw_videos"
+DEFAULT_BACKUP_DIR="${HOME}/bustago_backup/raw_videos"
 
 DEFAULT_STATION="INS01"
 
@@ -56,7 +61,7 @@ Options:
   --resolution WxH   해상도 (기본 ${DEFAULT_RESOLUTION})
   --fps N            프레임율 (기본 ${DEFAULT_FPS})
   --station ID       정류장 ID, 파일명에 들어감 (기본 ${DEFAULT_STATION})
-  --output PATH      출력 mp4 경로 (기본 ${DEFAULT_SSD_DIR}/<날짜>_demo_<STATION>.mp4)
+  --output PATH      출력 mp4 경로 (기본 ${DEFAULT_OUTPUT_DIR}/<날짜>_demo_<STATION>.mp4)
   --dry-run          실제 녹화 없이 명령만 출력
   --help             이 메시지
 
@@ -86,7 +91,7 @@ done
 # 출력 경로 결정
 TODAY="$(date +%Y-%m-%d)"
 if [[ -z "$OUTPUT" ]]; then
-    OUTPUT="${DEFAULT_SSD_DIR}/${TODAY}_demo_${STATION}.mp4"
+    OUTPUT="${DEFAULT_OUTPUT_DIR}/${TODAY}_demo_${STATION}.mp4"
 fi
 OUT_DIR="$(dirname "$OUTPUT")"
 STEM="${OUTPUT%.mp4}"
