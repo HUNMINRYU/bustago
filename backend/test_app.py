@@ -245,6 +245,48 @@ def test_arrive_endpoint_mocked_failure(client):
     assert resp.status_code == 502
 
 
+# --- Rule-based Fallback Tests (2026-05-17 Principal Engineer 진단 반영) ---
+
+
+def test_rule_based_weekday_morning_peak():
+    """평일 8시 (출근 피크) → 매우혼잡."""
+    from backend.seeds.rule_based import rule_based_predict
+    result = rule_based_predict(hour=8, weekday=2)
+    assert result["level"] == 3
+    assert result["label"] == "매우혼잡"
+    assert result["source"] == "rule_based"
+    assert abs(sum(result["probabilities"]) - 1.0) < 0.01
+
+
+def test_rule_based_weekday_late_night():
+    """평일 새벽 3시 → 여유."""
+    from backend.seeds.rule_based import rule_based_predict
+    result = rule_based_predict(hour=3, weekday=1)
+    assert result["level"] == 0
+    assert result["label"] == "여유"
+
+
+def test_rule_based_weekend_reduces_level():
+    """주말은 평일보다 1단계 낮음 (평일 8시 3 → 주말 8시 2)."""
+    from backend.seeds.rule_based import rule_based_predict
+    weekday = rule_based_predict(hour=8, weekday=2)
+    weekend = rule_based_predict(hour=8, weekday=6)
+    assert weekday["level"] == 3
+    assert weekend["level"] == 2
+
+
+def test_rule_based_invalid_hour_raises():
+    from backend.seeds.rule_based import rule_based_predict
+    with pytest.raises(ValueError):
+        rule_based_predict(hour=25, weekday=0)
+
+
+def test_rule_based_invalid_weekday_raises():
+    from backend.seeds.rule_based import rule_based_predict
+    with pytest.raises(ValueError):
+        rule_based_predict(hour=10, weekday=7)
+
+
 def test_arrive_endpoint_empty_key_returns_502(client, monkeypatch):
     """/api/arrive/<id> — GJ_BIS_API_KEY가 비어있으면 외부 호출 없이 502.
 

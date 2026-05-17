@@ -64,12 +64,32 @@ RECOMMENDATIONS = {
 
 
 def _do_predict(features: dict) -> dict:
-    """ML 모델로 예측. 모델 없으면 더미 반환."""
+    """ML 모델 우선, 실패 시 rule_based 폴백 (2026-05-17 진단 반영).
+
+    폴백 우선순위:
+      1. ML predict_congestion (sklearn rf_model.pkl)
+      2. rule_based (광주대 통학 패턴, sklearn 의존 0)
+      3. DUMMY_PREDICTION (항상 '보통')
+
+    rule_based가 추가된 이유:
+    - Principal Engineer 진단 (2026-05-17): "MVP는 rule-based로 충분, ML 너무 일찍"
+    - 외부 실사 §C-2: 0.9993이 합성 라벨링 결과라는 한계 → rule_based가 *현실적 대안*
+    - 시연 비상 매트릭스 R3: fine-tune이 baseline 이하일 때 즉시 전환 가능
+    """
     try:
         from ml.models.predict import predict_congestion
         return predict_congestion(features, model_path=MODEL_PATH)
-    except (FileNotFoundError, ImportError):
-        return dict(DUMMY_PREDICTION)
+    except (FileNotFoundError, ImportError) as e:
+        log.warning("ML predict 실패 → rule_based 폴백: %s", e)
+        try:
+            from backend.seeds.rule_based import rule_based_predict
+            return rule_based_predict(
+                hour=int(features.get("hour", 12)),
+                weekday=int(features.get("weekday", 0)),
+            )
+        except Exception as e2:
+            log.warning("rule_based도 실패 → DUMMY 폴백: %s", e2)
+            return dict(DUMMY_PREDICTION)
 
 
 @predict_bp.route("/api/predict")
