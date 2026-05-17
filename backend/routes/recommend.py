@@ -15,25 +15,36 @@ log = logging.getLogger(__name__)
 
 recommend_bp = Blueprint("recommend", __name__)
 
-# 광주 BIS API 키 없을 때 폴백 고정 노선 데이터
-STATIC_ROUTES = {
-    "GATE01": [
-        {"route_no": "419", "route_name": "419번 (광주역행)",
-         "end_stations": ["광주역", "충장로", "금남로"], "route_count": 8},
-        {"route_no": "518", "route_name": "518번 (금남로행)",
-         "end_stations": ["금남로", "충장로", "광주대입구"], "route_count": 7},
-    ],
-    "INS01": [
-        {"route_no": "SHUTTLE1", "route_name": "셔틀 1호차",
-         "end_stations": ["정문"], "route_count": 2},
-        {"route_no": "SHUTTLE2", "route_name": "셔틀 2호차",
-         "end_stations": ["정문"], "route_count": 2},
-        {"route_no": "SHUTTLE5", "route_name": "셔틀 5호차",
-         "end_stations": ["정문"], "route_count": 2},
-        {"route_no": "SHUTTLE6", "route_name": "셔틀 6호차",
-         "end_stations": ["정문"], "route_count": 2},
-    ],
-}
+# 광주대 노선 데이터 단일 진실원
+# (2026-05-17 클린 아키텍처: STATIC_ROUTES 분산 제거 → backend.seeds.routes_gj)
+from backend.seeds.routes_gj import routes_for_station
+
+
+def _load_routes_for(station_id: str) -> list[dict]:
+    """DB 우선, 빈 결과 시 코드 시드 폴백 (단일 진실원 = seeds/routes_gj.py).
+
+    DB 시드가 정상 적용된 환경은 DB 결과 반환 (운영 환경).
+    schema.sql 미적용 / 신규 환경 / CI 등에서는 코드 폴백 (시연 안정성).
+    """
+    from backend.models.db import fetchall
+    try:
+        rows = fetchall(
+            "SELECT route_no, route_name, end_stations, route_count "
+            "FROM routes WHERE start_station_id = ?",
+            (station_id,)
+        )
+    except Exception as e:
+        log.warning("routes DB 조회 실패, 코드 시드 폴백: %s", e)
+        rows = None
+
+    if rows:
+        return [
+            {"route_no": r["route_no"], "route_name": r["route_name"],
+             "end_stations": json.loads(r["end_stations"]),
+             "route_count": r["route_count"]}
+            for r in rows
+        ]
+    return routes_for_station(station_id)
 
 
 @recommend_bp.route("/api/route-recommend")
@@ -54,19 +65,8 @@ def route_recommend():
     hour = int(hour_str)
     weekday = int(weekday_str)
 
-    # 노선 목록: 고정 데이터 우선, 없으면 DB
-    routes = STATIC_ROUTES.get(station_id.upper())
-    if not routes:
-        from backend.models.db import fetchall
-        rows = fetchall(
-            "SELECT route_no, route_name, end_stations, route_count FROM routes WHERE start_station_id = ?",
-            (station_id,)
-        )
-        routes = [
-            {"route_no": r["route_no"], "route_name": r["route_name"],
-             "end_stations": json.loads(r["end_stations"]), "route_count": r["route_count"]}
-            for r in (rows or [])
-        ]
+    # 노선 목록: DB 우선 → 코드 시드 폴백 (단일 진실원 정합화, 2026-05-17)
+    routes = _load_routes_for(station_id)
 
     if not routes:
         return jsonify({

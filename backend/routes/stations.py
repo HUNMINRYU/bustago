@@ -134,12 +134,8 @@ def _gj_bis_items(data: dict, list_key: str) -> list:
         return []
 
 
-# 광주대 버스정류소 — captest/bus_server.py에서 확인된 실제 busstop_id
-GJ_STOPS = [
-    {"name": "광주대 (3230)", "busstop_id": 1981, "ars_no": "GATE01"},
-    {"name": "광주대 (3229)", "busstop_id": 80,   "ars_no": "GATE01"},
-    {"name": "광주대입구 (3228)", "busstop_id": 3219, "ars_no": "GATE01"},
-]
+# 광주대 버스정류소 — 단일 진실원 (2026-05-17 클린 아키텍처 정합화)
+from backend.seeds.gj_constants import GJ_BUSSTOPS as GJ_STOPS
 
 
 @stations_bp.route("/api/arrive/<int:busstop_id>")
