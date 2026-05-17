@@ -1,16 +1,29 @@
 # 실행: python bus_server.py
 # 접속: http://localhost:5000
+#
+# 2026-05-17: 진단 P0 후속 — 하드코딩 SERVICE_KEY 제거 + 환경변수 의존.
+# 본 파일은 광주 BIS API 통합 초기(2026-05-13)의 참조 구현(captest)이며,
+# 운영 코드는 backend/routes/stations.py로 이관됨. 보존 목적의 참고 자료.
 
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import os
+from dotenv import load_dotenv
+
+# 프로젝트 루트의 .env에서 GJ_BIS_API_KEY를 읽는다.
+# 본 파일을 captest 디렉토리에서 직접 실행할 경우 ../../../../.env 경로.
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
 app = Flask(__name__, static_folder=".")
 CORS(app)
 
-# API키
-SERVICE_KEY = "bN25YqJDY0QChe%2BqqNsdxd%2FYQy3krb4JYe0Vc06Fi4%2FtV%2BH0ECGdD1h%2FNuQF5CdNH0bIxWkfniL4%2FM6ce13GIQ%3D%3D"
+# API키 — .env에서 로드. 빈 값이면 시작 시 경고.
+SERVICE_KEY = os.getenv("GJ_BIS_API_KEY", "")
+if not SERVICE_KEY:
+    print("[captest] GJ_BIS_API_KEY 미설정 — API 호출은 실패할 것.")
+    print("[captest] 프로젝트 루트의 .env에 키를 설정하세요. .env.example 참고.")
 
 BASE_URL = "https://apis.data.go.kr/6290000/gj_bis"
 

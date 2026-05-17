@@ -54,3 +54,8 @@ async function fetchRouteRecommend(stationId, hour, weekday, dest) {
 async function fetchBusArrival(busstopId) {
   return fetchAPI('/arrive/' + busstopId);
 }
+
+// 2026-05-17: 광주 BIS 실시간 버스 위치 — captest에서 본 시스템으로 이관
+async function fetchBusLocation(lineId) {
+  return fetchAPI('/bus_location/' + lineId);
+}

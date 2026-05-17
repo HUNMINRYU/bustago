@@ -174,6 +174,28 @@ def lines():
     })
 
 
+@stations_bp.route("/api/bus_location/<int:line_id>")
+@limiter.limit("30 per minute")
+def bus_location(line_id: int):
+    """광주 BIS 실시간 버스 위치 (노선별 GPS 좌표).
+
+    2026-05-17: captest/bus_server.py에서 본 시스템으로 이관.
+    응답: items에 각 차량의 좌표·차량번호·진행 방향 등이 들어있음
+          (필드명은 광주 BIS 명세를 그대로 따름).
+    """
+    data = _call_gj_bis("busLocationInfo", {"LINE_ID": line_id})
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    resp = data.get("RESPONSE", {})
+    list_key = next((k for k in resp if k != "RESULT"), None)
+    items = _gj_bis_items(data, list_key) if list_key else []
+    return jsonify({
+        "status": "ok",
+        "data": {"line_id": line_id, "items": items, "count": len(items)},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
 @stations_bp.route("/api/gj-stops")
 @limiter.limit("60 per minute")
 def gj_stops():

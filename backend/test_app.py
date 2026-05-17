@@ -257,6 +257,50 @@ def test_arrive_endpoint_empty_key_returns_502(client, monkeypatch):
     assert resp.status_code == 502
 
 
+# --- Bus Location Tests (2026-05-17: captest에서 본 시스템으로 이관) ---
+
+
+@responses.activate
+def test_bus_location_endpoint_mocked_success(client):
+    """/api/bus_location/<line_id> — mock 200에서 차량 GPS 정상 추출."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/busLocationInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "BUS_LIST": {
+                    "ITEM": [
+                        {"PLATE_NO": "광주70자1234", "GPS_LATI": 35.1377, "GPS_LONG": 126.8930},
+                        {"PLATE_NO": "광주70자5678", "GPS_LATI": 35.1390, "GPS_LONG": 126.8945},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/bus_location/100")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["line_id"] == 100
+    assert body["data"]["count"] == 2
+    assert body["data"]["items"][0]["PLATE_NO"] == "광주70자1234"
+
+
+@responses.activate
+def test_bus_location_endpoint_mocked_failure(client):
+    """/api/bus_location/<line_id> — upstream 실패 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/busLocationInfo",
+        body=Exception("simulated upstream timeout"),
+    )
+    resp = client.get("/api/bus_location/100")
+    assert resp.status_code == 502
+    assert resp.json["status"] == "error"
+
+
 def test_gj_stops_returns_static_list(client):
     """GET /api/gj-stops 정적 광주대 정류소 목록 확인"""
     resp = client.get("/api/gj-stops")
