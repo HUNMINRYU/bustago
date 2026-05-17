@@ -38,20 +38,18 @@ FEATURE_COLS = [
 LABEL_NAMES = {0: "여유", 1: "보통", 2: "혼잡", 3: "매우혼잡"}
 
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
-# lgbm_model.pkl 우선, 없으면 rf_model.pkl fallback
-_LGBM_PATH = os.path.join(MODEL_DIR, "lgbm_model.pkl")
+# 2026-05-17 단순화 B: LGBM 인프라를 archive/ml_lightgbm/으로 이관.
+# 운영 모델은 RF 단일. ML 호출 실패 시 backend.seeds.rule_based 폴백 (backend/routes/predict.py).
 _RF_PATH = os.path.join(MODEL_DIR, "rf_model.pkl")
 
 _model_cache = None
 
 
 def _resolve_model_path() -> str:
-    if os.path.exists(_LGBM_PATH):
-        return _LGBM_PATH
     if os.path.exists(_RF_PATH):
         return _RF_PATH
     raise FileNotFoundError(
-        "모델 파일 없음. train_lgbm.py 또는 train_rf.py를 먼저 실행하세요."
+        f"모델 파일 없음: {_RF_PATH}. train_rf.py를 먼저 실행하세요."
     )
 
 

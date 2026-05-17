@@ -2,9 +2,11 @@
 
 > 서울시 공공데이터 기반 혼잡도 4단계 분류 파이프라인.
 >
-> - **현재 운영**: RandomForest (`rf_model.pkl` 225KB, 학습 완료) ← Backend가 사용
-> - **보조 (학습 인프라 완료)**: LightGBM (`train_lgbm.py` 작성됨, 모델 파일은 광주 현장 데이터 확보 후 생성 예정)
-> - **자동 선택**: `predict.py` 호출 시 `lgbm_model.pkl`이 존재하면 LGBM, 없으면 `rf_model.pkl` fallback
+> - **운영 모델 (단일)**: RandomForest (`rf_model.pkl` 2.3MB, 학습 완료) ← Backend가 사용
+> - **폴백**: `backend/seeds/rule_based.py` (광주대 통학 패턴 hour×weekday 기반, 의존성 0)
+> - **호출 체인**: backend → ML predict → 실패 시 rule_based → 실패 시 DUMMY (3단 폴백)
+>
+> 2026-05-17 단순화 B: LightGBM 학습 인프라는 `archive/ml_lightgbm/`로 이관 (모델 파일 미생성·미운영이었던 듀얼 트랙 정리).
 
 ---
 
@@ -16,34 +18,37 @@ ml/
 │   ├── collect_congestion.py       # 혼잡도 실시간 수집 (서울시 버스도착정보 API)
 │   ├── collect_boarding.py         # 승하차 이력 수집
 │   ├── collect_weather.py          # 기상청 API
-│   ├── test_collect_congestion.py  # Mock 단위 테스트
+│   ├── test_collect_congestion.py  # Mock 단위 테스트 (pytest 3건)
 │   └── pipeline.py                 # 통합 파이프라인 (main)
 ├── preprocessing/
 │   └── build_features.py           # 전처리 + Feature 결합
 ├── models/
-│   ├── train_rf.py                 # RandomForest 학습 — **현재 운영 모델** 생성
-│   ├── rf_model.pkl                # RandomForest 학습 모델 (225KB) ← **운영 중**
-│   ├── train_lgbm.py               # LightGBM 학습 — `--compare` 옵션으로 RF 비교 가능 (광주 데이터 확보 후 실행 예정)
-│   ├── predict.py                  # 예측 인터페이스 (lgbm_model.pkl 존재 시 우선, 없으면 rf fallback)
-│   └── train_lgbm_fallback.py      # ML 패키지 미설치 환경 대응 스크립트
+│   ├── train_rf.py                 # RandomForest 학습 — 운영 모델 생성
+│   ├── rf_model.pkl                # RandomForest 학습 모델 (2.3MB, n=100) ← 운영 중
+│   └── predict.py                  # 예측 인터페이스 (RF 단일 로드)
 └── README.md
 ```
+
+> 폴백 모듈: `backend/seeds/rule_based.py` (sklearn 미설치 환경에서도 동작)
+> Archive: `archive/ml_lightgbm/` (LightGBM 학습 인프라 복원 가이드 포함)
 
 ---
 
 ## 🔄 파이프라인 흐름
 
 ```
-[데이터 수집]           [전처리]              [모델 학습]          [추론]
+[데이터 수집]           [전처리]              [모델 학습]      [추론]
 collect_congestion ─┐
-collect_boarding  ──┼─→ build_features.py ──→ train_lgbm.py ──→ predict.py
-collect_weather  ───┘                     └─→ train_rf.py (fallback)
+collect_boarding  ──┼─→ build_features.py ──→ train_rf.py ──→ predict.py
+collect_weather  ───┘                                        ↑ ML 실패 시
+                                          backend.seeds.rule_based ──┘
 ```
 
 1. **데이터 수집** (`data_collection/`): 서울시 API, 승하차 이력, 기상청 API에서 원시 데이터 수집
 2. **전처리** (`preprocessing/`): 결측치 처리, 시간대 인코딩, Feature 결합
-3. **모델 학습** (`models/`): RandomForest로 4단계 분류 학습 (현 운영), LightGBM은 광주 데이터 확보 후 전환 예정
+3. **모델 학습** (`models/`): RandomForest로 4단계 분류 학습 (운영)
 4. **추론** (`models/predict.py`): Backend에서 호출하는 예측 인터페이스
+5. **폴백** (`backend.seeds.rule_based`): ML 실패 시 광주대 통학 패턴 rule-based 추정
 
 ---
 
@@ -51,7 +56,7 @@ collect_weather  ───┘                     └─→ train_rf.py (fallbac
 
 ```bash
 # 1. 의존성 설치
-pip install -r ../backend/requirements.txt   # 공용 (RandomForest 운영용)
+pip install -r ../backend/requirements.txt   # RandomForest 운영용
 
 # 2. 데이터 수집 파이프라인 실행
 python data_collection/pipeline.py
@@ -59,15 +64,10 @@ python data_collection/pipeline.py
 # 3. 전처리 및 Feature 결합
 python preprocessing/build_features.py
 
-# 4-A. 현재 운영: RandomForest 재학습 (필요 시)
+# 4. RandomForest 학습 (필요 시 재학습)
 python models/train_rf.py
 
-# 4-B. 보조: LightGBM 학습 (광주 데이터 확보 후 권장)
-pip install lightgbm                          # 별도 설치 필요
-python models/train_lgbm.py                   # 학습 → lgbm_model.pkl 생성
-python models/train_lgbm.py --compare         # RF vs LGBM 성능 비교 출력
-
-# 5. 예측 테스트 (자동 선택: lgbm 우선, 없으면 rf fallback)
+# 5. 예측 테스트
 python models/predict.py
 ```
 
@@ -90,15 +90,6 @@ python models/predict.py
 > 주의: 합성/quantile 라벨링 결과로 Accuracy가 비현실적으로 높음 (진단 §6).
 > 광주대 자체 데이터로 검증 필요 — Phase 3 이후 트랙.
 
-### LightGBM (학습 인프라 작성 완료, 모델 파일 미생성 — 광주 데이터 확보 후 학습 예정)
-
-| 항목 | 값 (`train_lgbm.py` 기준) |
-|------|-----|
-| 알고리즘 | LGBMClassifier |
-| 하이퍼파라미터 | `n_estimators=300, max_depth=6, learning_rate=0.05, num_leaves=31` |
-| 합성 데이터 벤치마크 (2026-05-07) | Accuracy 0.9400 / F1 (macro) 0.9319 / CV 5-fold 0.9340 ± 0.0215 |
-| 모델 파일 | `lgbm_model.pkl` (학습 실행 후 1.7 MB 예상) ← 현재 **미생성** |
-
 ### 학습 결과 진화 (운영 모델 RandomForest)
 
 | 시점 | 설정 | Features | Accuracy | F1 macro | CV 5-fold | 모델 크기 |
@@ -107,14 +98,23 @@ python models/predict.py
 | 2026-05-16 (실 14,616건, weekday 제거) | n=10, depth=10 | 6 | 0.9973 | 0.9973 | 0.9979 ±0.0013 | 0.2 MB |
 | **2026-05-16 (현재 운영)** | **n=100, depth=10** | **6** | **0.9993** | **0.9993** | **0.9991 ±0.0007** | **2.3 MB** |
 
-### LightGBM (참고 — 광주 데이터 확보 후 전환 예정)
+### Rule-based Fallback (`backend/seeds/rule_based.py`, 2026-05-17 추가)
 
 | 항목 | 값 |
 |------|-----|
-| 합성 데이터 벤치마크 (2026-05-07) | Accuracy 0.9400 / F1 (macro) 0.9319 / CV 5-fold 0.9340 ± 0.0215 |
-| 모델 파일 | `lgbm_model.pkl` (학습 실행 후 1.7 MB 예상) ← 현재 **미생성** |
+| 알고리즘 | 광주대 통학 패턴 hour×weekday 룰 |
+| 의존성 | 없음 (sklearn 미설치 환경에서도 동작) |
+| 정확도 | 미측정 (직관 기반) — 광주 자체 데이터로 후일 검증 |
+| 용도 | ML 호출 실패 시 폴백, MVP 단순화 대안 |
 
-> ⚠️ 위 수치는 합성/quantile 라벨링 결과로 비현실적으로 높음. 광주 현장 실측 검증 필요 (Phase 3 이후).
+> ⚠️ 위 RF 수치는 합성/quantile 라벨링 결과로 비현실적으로 높음. 광주 현장 실측 검증 필요 (Phase 3 이후).
+> 본 한계는 `docs/04_테스트/모델_신뢰성_한계_진술서.md`에 상세 명시.
+
+### Archived (2026-05-17 단순화 B)
+
+| 항목 | Archive 위치 | 사유 |
+|---|---|---|
+| `train_lgbm.py` + `train_lgbm_fallback.py` | `archive/ml_lightgbm/` | LightGBM 학습 인프라 — 모델 파일 미생성, 듀얼 트랙 정리. 광주 데이터 확보 후 부활 검토. |
 
 ### 활성 Feature (6개, 2026-05-16 갱신)
 
