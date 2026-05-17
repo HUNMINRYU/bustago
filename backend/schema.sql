@@ -21,17 +21,9 @@ CREATE TABLE IF NOT EXISTS predictions (
     FOREIGN KEY (station_ars_no) REFERENCES stations(ars_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS weather_cache (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    location VARCHAR(50) NOT NULL,
-    hour TINYINT NOT NULL,
-    weather TINYINT,
-    temperature DECIMAL(4,1),
-    rain TINYINT,
-    humidity TINYINT,
-    wind_speed DECIMAL(4,1),
-    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 2026-05-17 단순화 C: weather_cache 테이블 제거.
+-- RF feature에서 weather/temperature 빠졌고 frontend·backend 모두 호출 0건이라 정리.
+-- 기존 DB에 weather_cache가 있어도 영향 X (참조하는 코드 없음).
 
 CREATE TABLE IF NOT EXISTS crowd_counts (
     id INT AUTO_INCREMENT PRIMARY KEY,

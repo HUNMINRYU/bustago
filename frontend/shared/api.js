@@ -36,9 +36,7 @@ async function fetchStations() {
   return fetchAPI('/stations');
 }
 
-async function fetchWeather() {
-  return fetchAPI('/weather/current');
-}
+// 2026-05-17 단순화 C: fetchWeather 제거 (/api/weather/current 엔드포인트 제거됨).
 
 async function fetchCrowdCount(stationId) {
   return fetchAPI('/crowd-count', { station_id: stationId });

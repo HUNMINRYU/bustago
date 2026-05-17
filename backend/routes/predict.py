@@ -23,10 +23,8 @@ _CACHE_TTL = 300
 
 
 def _cache_key(features: dict) -> tuple:
-    # 2026-05-16: weekday는 ML feature에서 제거되었지만 API 호환성 위해 cache key에 유지
-    # (DB 컬럼에는 그대로 저장됨).
-    return (features["hour"], features.get("weekday", -1), features["weather"],
-            features.get("temperature", 20.0), features["route_count"])
+    # 2026-05-17: weather/temperature 제거 (단순화 C). weekday는 rule_based 폴백 입력이라 유지.
+    return (features["hour"], features.get("weekday", -1), features["route_count"])
 
 
 def _cached_predict(features: dict) -> dict:
@@ -144,24 +142,15 @@ def predict():
     prev_boarding = crowd["count_board"] if crowd else 0
     prev_alighting = crowd["count_in"] if crowd else 0
 
-    # weather_cache 테이블에서 최근 날씨 조회
-    weather_row = fetchone(
-        "SELECT weather, temperature FROM weather_cache ORDER BY fetched_at DESC LIMIT 1",
-        (),
-    )
-    weather_val = weather_row["weather"] if weather_row else 0
-    temperature_val = weather_row["temperature"] if weather_row else 20.0
-
-    # 피처 구성: ML 6개 (2026-05-16 weekday 제거, 진단 P0).
-    # weekday는 API/DB 호환성 위해 받아두지만 ML 호출에는 미포함.
+    # 피처 구성: ML 4개 (2026-05-17 단순화 C 반영)
+    # - weekday: API/DB 호환성 위해 받아두지만 ML 호출에는 미포함 (진단 P0)
+    # - weather/temperature: 2026-05-17 단순화 C로 제거 (외부 의존성 제거)
     features = {
         "hour": hour,
-        "weather": weather_val,
-        "temperature": temperature_val,
         "prev_boarding": prev_boarding,
         "prev_alighting": prev_alighting,
         "route_count": 5,
-        "weekday": weekday,  # ML 모델은 무시. 캐시 키와 DB 컬럼 호환용.
+        "weekday": weekday,  # rule_based 폴백 + DB 컬럼 호환용. ML 모델은 무시.
     }
 
     prediction = _cached_predict(features)

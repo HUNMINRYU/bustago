@@ -18,7 +18,7 @@
 | 레이어 | 내용 |
 |--------|------|
 | **데이터** | 서울시 공공데이터(차내혼잡도·승하차 이력·기상) 기반 학습 |
-| **혼잡도 모델** | **운영 = RandomForest** (`rf_model.pkl` 2.3MB, n=100, 6 feature, 2026-05-16 재학습) · **폴백 = rule_based** (`backend/seeds/rule_based.py`, 광주대 통학 패턴, 의존성 0). LightGBM 듀얼 트랙은 2026-05-17 단순화로 `archive/ml_lightgbm/`에 이관. |
+| **혼잡도 모델** | **운영 = RandomForest** (`rf_model.pkl` 2.9MB, n=100, **4 feature** — hour/prev_boarding/prev_alighting/route_count, 2026-05-17 재학습) · **폴백 = rule_based** (`backend/seeds/rule_based.py`, 광주대 통학 패턴, 의존성 0). LightGBM 듀얼 트랙은 2026-05-17 단순화로 `archive/ml_lightgbm/`에 이관. |
 | **AI 카운팅** | 광주대 인성관 정류장 — Jetson Orin Nano(YOLOv11+DeepSORT)로 실시간 대기 인원 수집 |
 | **혼잡도 예측** | 서울 학습 모델 → 광주 정류장 직접 적용 (혼잡도 4단계 기준은 국토부 표준으로 동일) |
 | **사용자 인터페이스** | 학생 PWA(혼잡도 + 노선 추천) + 운영자 Admin 대시보드(실시간 카운팅) |

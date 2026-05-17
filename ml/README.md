@@ -96,7 +96,10 @@ python models/predict.py
 |---|---|---|---|---|---|---|
 | 2026-05-07 (합성 500행) | n=10, depth=10 | 7 (with weekday placeholder) | 0.9000 | 0.8850 | — | 0.2 MB |
 | 2026-05-16 (실 14,616건, weekday 제거) | n=10, depth=10 | 6 | 0.9973 | 0.9973 | 0.9979 ±0.0013 | 0.2 MB |
-| **2026-05-16 (현재 운영)** | **n=100, depth=10** | **6** | **0.9993** | **0.9993** | **0.9991 ±0.0007** | **2.3 MB** |
+| 2026-05-16 (n=100 채택) | n=100, depth=10 | 6 | 0.9993 | 0.9993 | 0.9991 ±0.0007 | 2.3 MB |
+| **2026-05-17 (현재 운영, weather 제거)** | **n=100, depth=10** | **4** | **0.9983** | **0.9983** | **0.9960 ±0.0029** | **2.9 MB** |
+
+> 2026-05-17 단순화 C 결과: weather/temperature 제거 후 hour feature importance 0.81로 집중 (이전 0.49). CV std는 0.0007 → 0.0029로 약간 증가했으나 절대 안정성 유지.
 
 ### Rule-based Fallback (`backend/seeds/rule_based.py`, 2026-05-17 추가)
 
@@ -116,22 +119,22 @@ python models/predict.py
 |---|---|---|
 | `train_lgbm.py` + `train_lgbm_fallback.py` | `archive/ml_lightgbm/` | LightGBM 학습 인프라 — 모델 파일 미생성, 듀얼 트랙 정리. 광주 데이터 확보 후 부활 검토. |
 
-### 활성 Feature (6개, 2026-05-16 갱신)
+### 활성 Feature (4개, 2026-05-17 갱신)
 
-| Feature | 출처 | 설명 |
-|---------|------|------|
-| hour | 파생 변수 | 시간대 (0-23) |
-| weather | 기상청 API | 날씨 코드 (0=맑음, 1=흐림, 2=비, 3=눈) |
-| temperature | 기상청 API | 현재 기온 (°C) |
-| prev_boarding | 승하차 이력 | 이전 시간대 승차 수 |
-| prev_alighting | 승하차 이력 | 이전 시간대 하차 수 |
-| route_count | 서울시 API | 경유 노선 수 |
+| Feature | 출처 | 설명 | Feature Importance |
+|---------|------|------|--------------------|
+| hour | 파생 변수 | 시간대 (0-23) | **0.81** |
+| route_count | 서울시 API | 경유 노선 수 | 0.10 |
+| prev_boarding | 승하차 이력 | 이전 시간대 승차 수 | 0.05 |
+| prev_alighting | 승하차 이력 | 이전 시간대 하차 수 | 0.04 |
 
-### Deprecated Feature
+### Deprecated Features
 
 | Feature | 제거일 | 사유 |
 |---|---|---|
-| weekday | 2026-05-16 | 서울 공공데이터(use_month 월 단위 집계)에 요일 정보 없음. 원본 컬럼 전부 -1. 이전 코드의 hour 기반 placeholder는 의미 없는 신호 (진단 P0 §6). 광주대 자체 카운팅에서 실제 요일 확보 시 부활 검토. backend API에서는 호환성 위해 파라미터로 받지만 ML 호출에 미포함. |
+| weekday | 2026-05-16 | 서울 공공데이터(use_month 월 단위 집계)에 요일 정보 없음 (진단 P0). backend API에서는 호환성 위해 파라미터로 받지만 ML 호출에 미포함. rule_based 폴백에는 사용됨. |
+| weather | 2026-05-17 | RF Feature Importance 0.07이었으나 외부 의존성(기상청 API)·운영 부담 대비 가치 낮다고 판단 (단순화 C). `/api/weather/current` + `weather_cache` 테이블 + `_parse_kma_items` 통째 정리. |
+| temperature | 2026-05-17 | weather와 함께 제거. Importance 0.26으로 hour 다음 차였으나 MVP 단순화 우선. |
 
 ### 혼잡도 레이블
 

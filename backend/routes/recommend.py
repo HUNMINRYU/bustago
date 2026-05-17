@@ -79,35 +79,16 @@ def route_recommend():
     if dest:
         routes = [r for r in routes if any(dest in s for s in r["end_stations"])]
 
-    # 기상 정보 (실패 시 기본값)
-    weather_feat = {"weather": 0, "temperature": 20.0}
-    try:
-        from backend.models.db import fetchone
-        row = fetchone(
-            "SELECT weather, temperature FROM weather_cache ORDER BY id DESC LIMIT 1", ()
-        )
-        if row:
-            weather_feat = {
-                "weather": row["weather"] or 0,
-                "temperature": float(row["temperature"] or 20.0),
-            }
-    except Exception as e:
-        # weather_cache 조회 실패는 기본값(weather=0, temp=20)으로 폴백.
-        # 노선 추천 자체는 진행해야 하므로 로깅만 하고 계속.
-        log.warning("weather_cache 조회 실패, 기본값 사용: %s", e)
-
-    # 각 노선 혼잡도 예측 (ML 모델 사용, 실패 시 시간 기반 fallback)
+    # 각 노선 혼잡도 예측 (ML 모델, 실패 시 rule_based 폴백)
+    # 2026-05-17 단순화 C: weather_cache 조회 제거 (RF feature에서 weather 빠짐)
     result_routes = []
     for route in routes:
-        # 2026-05-16: weekday는 받아두지만 ML feature 아님 (predict.py가 무시).
         features = {
             "hour": hour,
-            "weather": weather_feat["weather"],
-            "temperature": weather_feat["temperature"],
             "prev_boarding": 0,
             "prev_alighting": 0,
             "route_count": route["route_count"],
-            "weekday": weekday,  # 응답 echo용
+            "weekday": weekday,  # rule_based 폴백 입력 + 응답 echo용
         }
         try:
             from ml.models.predict import predict_congestion

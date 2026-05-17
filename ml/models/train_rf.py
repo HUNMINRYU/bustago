@@ -19,10 +19,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.metrics import classification_report, accuracy_score, f1_score
 
-# Feature 컬럼 순서 (build_features.py 기준, 2026-05-16 weekday 제거)
+# Feature 컬럼 순서 (build_features.py 기준)
+# 2026-05-16: weekday 제거 (진단 P0)
+# 2026-05-17: weather/temperature 제거 (단순화 C — 외부 의존 제거)
 FEATURE_COLS = [
     "hour",
-    "weather", "temperature",
     "prev_boarding", "prev_alighting",
     "route_count",
 ]

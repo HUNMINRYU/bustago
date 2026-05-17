@@ -87,9 +87,8 @@ def build_feature_dataframe(df_boarding, df_weather=None):
     """
     최종 학습용 Feature DataFrame 구축
 
-    Features (2026-05-16 갱신, weekday 제거):
-        hour, weather, temperature, rain,
-        prev_boarding, prev_alighting, route_count, boarding, alighting
+    Features (2026-05-17 갱신, weekday 제거 + weather 제거):
+        hour, prev_boarding, prev_alighting, route_count, boarding, alighting
     Label:
         label (0=여유, 1=보통, 2=혼잡, 3=매우혼잡)
 
@@ -116,46 +115,15 @@ def build_feature_dataframe(df_boarding, df_weather=None):
     if "weekday" in df.columns:
         df = df.drop(columns=["weekday"])
 
-    # 4. 기상 데이터 결합
-    if df_weather is not None and not df_weather.empty:
-        # 서울 지역 날씨만 필터 (첫 번째 location 기준)
-        seoul_weather = df_weather[
-            df_weather["location"].str.contains("서울")
-        ].copy()
+    # 4. 기상 feature 제거 (2026-05-17 단순화 C):
+    # weather/temperature는 RF Feature Importance 0.07/0.26으로 hour(0.49) 다음 차였으나,
+    # MVP 단순화 관점에서 외부 의존성·운영 부담 대비 가치가 낮다고 판단.
+    # weather_cache 테이블 + /api/weather/current + 기상청 API 의존을 모두 제거.
+    # df_weather 인자는 시그니처 호환을 위해 받지만 사용하지 않음.
 
-        if not seoul_weather.empty:
-            # hour 기준으로 평균 날씨 매핑 (월 데이터 ↔ 일일 예보 매칭)
-            weather_avg = seoul_weather.groupby("hour").agg(
-                weather=("weather", lambda x: x.mode().iloc[0] if len(x) > 0 else 0),
-                temperature=("temperature", "mean"),
-                rain=("rain", "max"),
-                rain_prob=("rain_prob", "mean"),
-                humidity=("humidity", "mean"),
-                wind_speed=("wind_speed", "mean"),
-            ).reset_index()
-
-            df = df.merge(weather_avg, on="hour", how="left")
-            print(f"\n[기상] 날씨 데이터 결합 완료")
-        else:
-            print(f"\n[기상] 서울 데이터 없음 — 기본값 사용")
-            df["weather"] = 0
-            df["temperature"] = 15.0
-            df["rain"] = 0
-            df["rain_prob"] = 0.0
-            df["humidity"] = 50.0
-            df["wind_speed"] = 2.0
-    else:
-        df["weather"] = 0
-        df["temperature"] = 15.0
-        df["rain"] = 0
-        df["rain_prob"] = 0.0
-        df["humidity"] = 50.0
-        df["wind_speed"] = 2.0
-
-    # 5. 최종 Feature 선택 (weekday 제거, 2026-05-16 진단 P0 반영)
+    # 5. 최종 Feature 선택 (4 feature, 2026-05-17 단순화 C)
     feature_cols = [
         "hour",
-        "weather", "temperature", "rain",
         "prev_boarding", "prev_alighting",
         "route_count",
         "boarding", "alighting",
