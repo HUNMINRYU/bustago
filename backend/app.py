@@ -17,11 +17,10 @@ from flask_cors import CORS
 from backend.config import DEBUG, PORT
 from backend.models.db import init_db
 from backend.extensions import limiter
-from backend.routes.predict import predict_bp
+from backend.routes.congestion import congestion_bp  # 2026-05-17 단순화 D: predict + recommend 통합
 from backend.routes.stats import stats_bp
 from backend.routes.stations import stations_bp
 from backend.routes.crowd import crowd_bp
-from backend.routes.recommend import recommend_bp
 
 
 def _configure_logging():
@@ -47,12 +46,11 @@ def create_app():
     CORS(app)
     limiter.init_app(app)
 
-    # Blueprint 등록
-    app.register_blueprint(predict_bp)
+    # Blueprint 등록 (2026-05-17 단순화 D: predict_bp + recommend_bp → congestion_bp)
+    app.register_blueprint(congestion_bp)
     app.register_blueprint(stats_bp)
     app.register_blueprint(stations_bp)
     app.register_blueprint(crowd_bp)
-    app.register_blueprint(recommend_bp)
 
     # DB 초기화
     with app.app_context():
