@@ -25,6 +25,8 @@ var leafletMap = null;
 var mapMarkers = [];
 var refreshInterval = null;
 var REFRESH_MS = 60000; // 60 seconds
+var CROWD_REFRESH_MS = 10000;
+var JETSON_STALE_MS = 60000;
 
 // DOM elements
 var stationFilter = document.getElementById('station-filter');
@@ -60,8 +62,11 @@ document.addEventListener('DOMContentLoaded', async function () {
   initMap();
   await loadDashboardData();
   hideLoading();
+  loadCrowdCount();
+  setInterval(loadCrowdCount, CROWD_REFRESH_MS);
 
   stationFilter.addEventListener('change', loadDashboardData);
+  stationFilter.addEventListener('change', loadCrowdCount);
   periodFilter.addEventListener('change', loadDashboardData);
 
   // Auto-refresh every 60 seconds
@@ -436,4 +441,34 @@ function fillStatsTable(statsRows) {
       CONGESTION[lvl].label + '</span></td>';
     tbody.appendChild(tr);
   });
+}
+
+async function loadCrowdCount() {
+  var sid = stationFilter.value === 'all' ? 'INS01' : stationFilter.value;
+  var data = await fetchCrowdCount(sid);
+  var dot = document.getElementById('jetson-dot');
+  var statusEl = document.getElementById('jetson-status');
+
+  if (data) {
+    document.getElementById('cnt-waiting').textContent = data.current_waiting;
+    document.getElementById('cnt-in').textContent = data.count_in;
+    document.getElementById('cnt-board').textContent = data.count_board;
+    document.getElementById('counting-ts').textContent = '기준: ' + data.created_at;
+
+    var diff = Date.now() - new Date(data.created_at).getTime();
+    if (diff < JETSON_STALE_MS) {
+      dot.className = 'status-dot online';
+      statusEl.textContent = 'Jetson 연결됨 (' + sid + ')';
+    } else {
+      dot.className = 'status-dot stale';
+      statusEl.textContent = Math.floor(diff / 1000) + '초 전 수신';
+    }
+  } else {
+    ['cnt-waiting', 'cnt-in', 'cnt-board'].forEach(function(id) {
+      document.getElementById(id).textContent = '—';
+    });
+    dot.className = 'status-dot offline';
+    statusEl.textContent = 'Jetson 미연결';
+    document.getElementById('counting-ts').textContent = '';
+  }
 }

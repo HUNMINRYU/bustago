@@ -252,6 +252,61 @@ body {
   color: var(--text-secondary);
 }
 
+/* Route Recommend Cards */
+.route-card { padding: 12px; border-radius: 8px; margin-bottom: 8px; background: #F5F5F5; }
+.route-card.recommended { border-left: 4px solid #4CAF50; background: #F1F8E9; }
+.route-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.route-no { font-weight: 700; font-size: 1rem; }
+.rec-badge { background: #4CAF50; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; }
+.route-dest { font-size: 0.85rem; color: #757575; margin-bottom: 6px; }
+.congestion-badge { display: inline-block; color: white; font-size: 0.8rem; padding: 3px 10px; border-radius: 12px; }
+
+/* Arrival Cards (광주 BIS Live) */
+.live-badge {
+  background: #F44336; color: white;
+  font-size: 0.7rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 12px;
+  margin-left: 8px; vertical-align: middle;
+  animation: blink-live 1.5s infinite;
+}
+@keyframes blink-live { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+.arrival-source {
+  font-size: 0.7rem; color: #9E9E9E;
+  margin-left: 6px; vertical-align: middle; font-weight: 400;
+}
+.arrival-card {
+  padding: 12px; border-radius: 8px; margin-bottom: 8px;
+  background: #FAFAFA; border-left: 3px solid #1976D2;
+}
+.arrival-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.arrival-line {
+  font-weight: 700; font-size: 1rem; color: #1976D2;
+  background: #E3F2FD; padding: 2px 10px; border-radius: 4px;
+}
+.arrival-tag {
+  font-size: 0.7rem; padding: 1px 6px; border-radius: 3px;
+  background: #ECEFF1; color: #546E7A;
+}
+.arrival-tag.imminent {
+  background: #FFEBEE; color: #C62828; font-weight: 600;
+  animation: blink-live 1s infinite;
+}
+.arrival-meta { font-size: 0.8rem; color: #757575; margin-bottom: 6px; }
+.arrival-eta { display: flex; align-items: baseline; gap: 10px; }
+.arrival-min { font-weight: 700; font-size: 1.2rem; }
+.arrival-min.soon { color: #4CAF50; }
+.arrival-min.mid  { color: #FFC107; }
+.arrival-min.far  { color: #757575; }
+.arrival-stop { font-size: 0.75rem; color: #9E9E9E; }
+.arrival-empty {
+  text-align: center; padding: 24px;
+  color: #9E9E9E; font-size: 0.9rem;
+}
+.arrival-footer {
+  text-align: right; font-size: 0.7rem;
+  color: #BDBDBD; margin-top: 8px;
+}
+
 /* Responsive - Tablet+ */
 @media (min-width: 600px) {
   .app-main {

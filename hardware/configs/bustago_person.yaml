@@ -1,0 +1,6 @@
+path: datasets/bustago_person/public_baseline
+train: train/images
+val: valid/images
+test: test/images
+names:
+  0: body

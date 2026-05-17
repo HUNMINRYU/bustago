@@ -2,6 +2,7 @@
 BUSTAGO Backend -- Flask Application
 """
 
+import logging
 import sys
 import os
 
@@ -19,9 +20,29 @@ from backend.extensions import limiter
 from backend.routes.predict import predict_bp
 from backend.routes.stats import stats_bp
 from backend.routes.stations import stations_bp
+from backend.routes.crowd import crowd_bp
+from backend.routes.recommend import recommend_bp
+
+
+def _configure_logging():
+    """backend.* 모듈의 logger를 stderr WARNING 이상으로 노출.
+    Flask 디버그 모드에서는 Flask의 logger도 같은 핸들러를 공유한다.
+    이미 핸들러가 붙어있으면(중복 호출) 두 번 추가하지 않는다.
+    """
+    root_logger = logging.getLogger("backend")
+    if root_logger.handlers:
+        return
+    handler = logging.StreamHandler(sys.stderr)
+    fmt = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+                            datefmt="%H:%M:%S")
+    handler.setFormatter(fmt)
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO if DEBUG else logging.WARNING)
 
 
 def create_app():
+    _configure_logging()
+
     app = Flask(__name__)
     CORS(app)
     limiter.init_app(app)
@@ -30,6 +51,8 @@ def create_app():
     app.register_blueprint(predict_bp)
     app.register_blueprint(stats_bp)
     app.register_blueprint(stations_bp)
+    app.register_blueprint(crowd_bp)
+    app.register_blueprint(recommend_bp)
 
     # DB 초기화
     with app.app_context():

@@ -1,6 +1,6 @@
 // BUSTAGO Shared API Wrapper
 
-var API_BASE = 'http://localhost:5000/api';
+var API_BASE = window.location.origin + '/api';
 
 async function fetchAPI(endpoint, params) {
   params = params || {};
@@ -38,4 +38,24 @@ async function fetchStations() {
 
 async function fetchWeather() {
   return fetchAPI('/weather/current');
+}
+
+async function fetchCrowdCount(stationId) {
+  return fetchAPI('/crowd-count', { station_id: stationId });
+}
+
+async function fetchRouteRecommend(stationId, hour, weekday, dest) {
+  var params = { station_id: stationId, hour: hour };
+  if (weekday !== undefined) params.weekday = weekday;
+  if (dest) params.dest = dest;
+  return fetchAPI('/route-recommend', params);
+}
+
+async function fetchBusArrival(busstopId) {
+  return fetchAPI('/arrive/' + busstopId);
+}
+
+// 2026-05-17: 광주 BIS 실시간 버스 위치 — captest에서 본 시스템으로 이관
+async function fetchBusLocation(lineId) {
+  return fetchAPI('/bus_location/' + lineId);
 }

@@ -2,10 +2,13 @@ import pytest
 import sys
 import os
 
+import responses
+
 # 프로젝트 루트를 sys.path에 추가
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.app import create_app
+from backend.config import GJ_BIS_BASE_URL
 
 @pytest.fixture
 def client():
@@ -33,3 +36,281 @@ def test_predict_endpoint_success(client):
     assert resp.json["status"] == "ok"
     assert "prediction" in resp.json["data"]
     assert resp.json["data"]["station_id"] == "100100118"
+
+
+# --- Crowd Count Tests ---
+
+def test_crowd_count_post_success(client):
+    """POST /api/crowd-count 정상 데이터 전송 시 200 확인"""
+    resp = client.post("/api/crowd-count", json={
+        "station_id": "INS01",
+        "count_in": 5,
+        "count_board": 3,
+        "current_waiting": 2,
+    })
+    assert resp.status_code == 200
+    assert resp.json["status"] == "ok"
+
+
+def test_crowd_count_post_missing_station(client):
+    """POST /api/crowd-count station_id 누락 시 400 확인"""
+    resp = client.post("/api/crowd-count", json={
+        "count_in": 5,
+        "count_board": 3,
+        "current_waiting": 2,
+    })
+    assert resp.status_code == 400
+    assert "station_id" in resp.json["message"]
+
+
+def test_crowd_count_get_success(client):
+    """POST 후 GET /api/crowd-count 최신 데이터 조회 확인"""
+    client.post("/api/crowd-count", json={
+        "station_id": "GETtest1",
+        "count_in": 10,
+        "count_board": 4,
+        "current_waiting": 6,
+    })
+    resp = client.get("/api/crowd-count?station_id=GETtest1")
+    assert resp.status_code == 200
+    assert resp.json["status"] == "ok"
+    assert resp.json["data"]["count_in"] == 10
+    assert resp.json["data"]["current_waiting"] == 6
+
+
+def test_crowd_count_get_no_data(client):
+    """GET /api/crowd-count 데이터 없는 정류장 조회 시 404 확인"""
+    resp = client.get("/api/crowd-count?station_id=UNKNOWN1")
+    assert resp.status_code == 404
+
+
+# --- Route Recommend Tests ---
+
+def test_route_recommend_gate01_morning(client):
+    """GET /api/route-recommend 정문 오전 추천 노선 확인"""
+    resp = client.get("/api/route-recommend?station_id=GATE01&hour=8")
+    assert resp.status_code == 200
+    routes = resp.json["data"]["routes"]
+    assert isinstance(routes, list)
+    assert len(routes) >= 1
+    assert any(route.get("recommended") is True for route in routes)
+
+
+def test_route_recommend_bad_station(client):
+    """GET /api/route-recommend station_id 오류 시 400 확인"""
+    resp = client.get("/api/route-recommend?station_id=&hour=8")
+    assert resp.status_code == 400
+
+
+def test_route_recommend_bad_hour(client):
+    """GET /api/route-recommend hour 오류 시 400 확인"""
+    resp = client.get("/api/route-recommend?station_id=GATE01&hour=99")
+    assert resp.status_code == 400
+
+
+# --- GJ BIS / Stations Tests ---
+
+# 진단 §6 P1 반영 (2026-05-16): 기존 "200 또는 502 OK" 테스트는 네트워크 없을 때
+# 그냥 통과하여 검증력이 없었음. 아래 mock 테스트로 성공/실패 케이스를 분리해
+# 결정론적으로 검증한다. 통합(실 네트워크) 테스트는 옵션 마커로 분리.
+
+
+@pytest.mark.network
+def test_lines_endpoint_integration(client):
+    """[integration] /api/lines 실 광주 BIS 호출 — 네트워크 환경에서만 의미.
+
+    `pytest -m "not network"`로 mock 테스트만 돌릴 수 있다.
+    """
+    resp = client.get("/api/lines")
+    assert resp.status_code in (200, 502)
+
+
+@pytest.mark.network
+def test_arrive_endpoint_integration(client):
+    """[integration] /api/arrive/<busstop_id> 실 광주 BIS 호출."""
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code in (200, 502)
+
+
+@responses.activate
+def test_lines_endpoint_mocked_success(client):
+    """/api/lines — mock 200 응답이 데이터로 정상 변환되는지."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "LINE_LIST": {
+                    "ITEM": [
+                        {"LINE_ID": 100, "LINE_NO": "419", "LINE_NAME": "419번"},
+                        {"LINE_ID": 101, "LINE_NO": "518", "LINE_NAME": "518번"},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["count"] == 2
+    assert body["data"]["items"][0]["LINE_NO"] == "419"
+
+
+@responses.activate
+def test_lines_endpoint_mocked_upstream_failure(client):
+    """/api/lines — upstream 500 시 502 반환 + 명시적 메시지."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        json={"error": "upstream broken"},
+        status=500,
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 502
+    assert resp.json["status"] == "error"
+    assert "광주 BIS" in resp.json["message"]
+
+
+@responses.activate
+def test_lines_endpoint_mocked_connection_error(client):
+    """/api/lines — requests 자체 예외 발생 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/lineInfo",
+        body=ConnectionError("simulated network down"),
+    )
+    resp = client.get("/api/lines")
+    assert resp.status_code == 502
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_success(client):
+    """/api/arrive/<id> — mock 200 응답에서 ARRIVE_LIST 정상 추출."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "ARRIVE_LIST": {
+                    "ITEM": [
+                        {"LINE_NAME": "419번", "REMAIN_MIN": 3, "REMAIN_STOP": 1, "LOW_BUS": 1},
+                        {"LINE_NAME": "518번", "REMAIN_MIN": 12, "REMAIN_STOP": 5, "LOW_BUS": 0},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["busstop_id"] == 1981
+    assert len(body["data"]["items"]) == 2
+    assert body["data"]["items"][0]["LOW_BUS"] == 1
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_empty_item(client):
+    """/api/arrive/<id> — 도착 예정 없을 때 빈 목록 200."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-200", "MESSAGE": "no data"},
+                "ARRIVE_LIST": {},
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 200
+    assert resp.json["data"]["items"] == []
+
+
+@responses.activate
+def test_arrive_endpoint_mocked_failure(client):
+    """/api/arrive/<id> — upstream timeout/실패 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/arriveInfo",
+        body=Exception("simulated timeout"),
+    )
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 502
+
+
+def test_arrive_endpoint_empty_key_returns_502(client, monkeypatch):
+    """/api/arrive/<id> — GJ_BIS_API_KEY가 비어있으면 외부 호출 없이 502.
+
+    config 직접 setattr이 아닌 stations 모듈 import 후 GJ_BIS_API_KEY 패치.
+    _call_gj_bis가 빈 키 가드 (2026-05-16 추가)를 타는지 검증.
+    """
+    from backend.routes import stations
+    monkeypatch.setattr(stations, "GJ_BIS_API_KEY", "")
+    resp = client.get("/api/arrive/1981")
+    assert resp.status_code == 502
+
+
+# --- Bus Location Tests (2026-05-17: captest에서 본 시스템으로 이관) ---
+
+
+@responses.activate
+def test_bus_location_endpoint_mocked_success(client):
+    """/api/bus_location/<line_id> — mock 200에서 차량 GPS 정상 추출."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/busLocationInfo",
+        json={
+            "RESPONSE": {
+                "RESULT": {"CODE": "INFO-000", "MESSAGE": "OK"},
+                "BUS_LIST": {
+                    "ITEM": [
+                        {"PLATE_NO": "광주70자1234", "GPS_LATI": 35.1377, "GPS_LONG": 126.8930},
+                        {"PLATE_NO": "광주70자5678", "GPS_LATI": 35.1390, "GPS_LONG": 126.8945},
+                    ]
+                },
+            }
+        },
+        status=200,
+    )
+    resp = client.get("/api/bus_location/100")
+    assert resp.status_code == 200
+    body = resp.json
+    assert body["status"] == "ok"
+    assert body["data"]["line_id"] == 100
+    assert body["data"]["count"] == 2
+    assert body["data"]["items"][0]["PLATE_NO"] == "광주70자1234"
+
+
+@responses.activate
+def test_bus_location_endpoint_mocked_failure(client):
+    """/api/bus_location/<line_id> — upstream 실패 시 502."""
+    responses.add(
+        responses.GET,
+        f"{GJ_BIS_BASE_URL}/busLocationInfo",
+        body=Exception("simulated upstream timeout"),
+    )
+    resp = client.get("/api/bus_location/100")
+    assert resp.status_code == 502
+    assert resp.json["status"] == "error"
+
+
+def test_gj_stops_returns_static_list(client):
+    """GET /api/gj-stops 정적 광주대 정류소 목록 확인"""
+    resp = client.get("/api/gj-stops")
+    assert resp.status_code == 200
+    assert isinstance(resp.json["data"], list)
+    assert len(resp.json["data"]) == 3
+
+
+def test_stations_response_has_gj_busstop_id_field(client):
+    """GET /api/stations 응답 항목에 gj_busstop_id 필드 포함 확인"""
+    resp = client.get("/api/stations")
+    assert resp.status_code == 200
+    assert all("gj_busstop_id" in station for station in resp.json["data"])

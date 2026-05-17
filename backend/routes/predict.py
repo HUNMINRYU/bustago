@@ -3,6 +3,7 @@ BUSTAGO Backend -- /api/predict 엔드포인트
 LRU Cache로 동일 피처 조합의 중복 예측 요청 시 ML 모델 호출 없이 즉시 반환.
 """
 
+import logging
 import re
 import time
 from datetime import datetime
@@ -12,6 +13,8 @@ from backend.models.db import fetchone, execute
 from backend.config import MODEL_PATH
 from backend.extensions import limiter
 
+log = logging.getLogger(__name__)
+
 predict_bp = Blueprint("predict", __name__)
 
 # --- Prediction Cache (TTL 300초 = 5분) ---
@@ -20,7 +23,9 @@ _CACHE_TTL = 300
 
 
 def _cache_key(features: dict) -> tuple:
-    return (features["hour"], features["weekday"], features["weather"],
+    # 2026-05-16: weekday는 ML feature에서 제거되었지만 API 호환성 위해 cache key에 유지
+    # (DB 컬럼에는 그대로 저장됨).
+    return (features["hour"], features.get("weekday", -1), features["weather"],
             features.get("temperature", 20.0), features["route_count"])
 
 
@@ -111,15 +116,32 @@ def predict():
     )
     station_name = station["station_name"] if station else station_id
 
-    # 피처 구성 (7개 -- rain/boarding/alighting 제거됨, Autoresearch 2026-03-31)
+    # crowd_counts 테이블에서 해당 정류장의 최근 카운팅 값 조회
+    crowd = fetchone(
+        "SELECT count_board, count_in FROM crowd_counts WHERE station_id = ? ORDER BY created_at DESC LIMIT 1",
+        (station_id,),
+    )
+    prev_boarding = crowd["count_board"] if crowd else 0
+    prev_alighting = crowd["count_in"] if crowd else 0
+
+    # weather_cache 테이블에서 최근 날씨 조회
+    weather_row = fetchone(
+        "SELECT weather, temperature FROM weather_cache ORDER BY fetched_at DESC LIMIT 1",
+        (),
+    )
+    weather_val = weather_row["weather"] if weather_row else 0
+    temperature_val = weather_row["temperature"] if weather_row else 20.0
+
+    # 피처 구성: ML 6개 (2026-05-16 weekday 제거, 진단 P0).
+    # weekday는 API/DB 호환성 위해 받아두지만 ML 호출에는 미포함.
     features = {
         "hour": hour,
-        "weekday": weekday,
-        "weather": 0,
-        "temperature": 20.0,
-        "prev_boarding": 0,
-        "prev_alighting": 0,
+        "weather": weather_val,
+        "temperature": temperature_val,
+        "prev_boarding": prev_boarding,
+        "prev_alighting": prev_alighting,
         "route_count": 5,
+        "weekday": weekday,  # ML 모델은 무시. 캐시 키와 DB 컬럼 호환용.
     }
 
     prediction = _cached_predict(features)
@@ -137,8 +159,13 @@ def predict():
             (station_id, hour, weekday, prediction["level"], prediction["label"],
              str(prediction["probabilities"])),
         )
-    except Exception:
-        pass  # DB 저장 실패해도 응답은 반환
+    except Exception as e:
+        # 예측 결과 DB 저장 실패는 응답 자체를 막지 않는다 (조회/관찰용 데이터).
+        # 단, 원인은 반드시 로깅하여 사일런트 실패를 방지.
+        log.warning(
+            "predictions INSERT 실패 station_id=%s hour=%s: %s",
+            station_id, hour, e,
+        )
 
     return jsonify({
         "status": "ok",

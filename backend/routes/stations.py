@@ -1,14 +1,17 @@
 """
-BUSTAGO Backend -- /api/stations, /api/weather/current 엔드포인트
+BUSTAGO Backend -- /api/stations, /api/weather/current, /api/arrive, /api/lines 엔드포인트
 """
 
 import json
+import logging
 from datetime import datetime
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from backend.models.db import fetchall, fetchone, execute
-from backend.config import WEATHER_API_KEY, WEATHER_API_URL
+from backend.config import WEATHER_API_KEY, WEATHER_API_URL, GJ_BIS_API_KEY, GJ_BIS_BASE_URL
 from backend.extensions import limiter
+
+log = logging.getLogger(__name__)
 
 stations_bp = Blueprint("stations", __name__)
 
@@ -16,7 +19,10 @@ stations_bp = Blueprint("stations", __name__)
 @stations_bp.route("/api/stations")
 @limiter.limit("60 per minute")
 def list_stations():
-    rows = fetchall("SELECT ars_no, station_name, latitude, longitude FROM stations ORDER BY station_name")
+    rows = fetchall(
+        "SELECT ars_no, station_name, latitude, longitude, gj_busstop_id "
+        "FROM stations ORDER BY station_name"
+    )
     return jsonify({
         "status": "ok",
         "data": rows,
@@ -80,8 +86,10 @@ def weather_current():
                     "data": {**weather_data, "cached": False},
                     "timestamp": now.isoformat(),
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            # 기상청 API 호출 또는 weather_cache INSERT 실패 → 아래 기본값 폴백.
+            # 응답은 막지 않되 원인은 기록.
+            log.warning("weather API/cache 실패, 기본값으로 폴백: %s", e)
 
     # API 키 없거나 호출 실패 시 기본값
     default_weather = {
@@ -98,6 +106,118 @@ def weather_current():
         "data": default_weather,
         "timestamp": now.isoformat(),
     })
+
+
+def _call_gj_bis(endpoint: str, params: dict = None) -> dict | None:
+    """광주광역시 버스정보시스템 API 호출 헬퍼."""
+    if not GJ_BIS_API_KEY:
+        # 키 누락 — config.py에서 시작 시 경고함. 여기서는 조용히 None 반환 (502 폴백 트리거).
+        return None
+    try:
+        import requests
+        url = f"{GJ_BIS_BASE_URL}/{endpoint}?serviceKey={GJ_BIS_API_KEY}"
+        res = requests.get(url, params=params or {}, timeout=8)
+        if res.status_code == 200:
+            return res.json()
+    except Exception as e:
+        # print → log.warning으로 교체 (silent 아니지만 logger 일관성).
+        log.warning("GJ BIS API 호출 실패 endpoint=%s: %s", endpoint, e)
+    return None
+
+
+def _gj_bis_items(data: dict, list_key: str) -> list:
+    """광주 BIS 응답에서 아이템 목록 추출."""
+    try:
+        item = data["RESPONSE"][list_key]["ITEM"]
+        return item if isinstance(item, list) else [item]
+    except (KeyError, TypeError):
+        return []
+
+
+# 광주대 버스정류소 — 단일 진실원 (2026-05-17 클린 아키텍처 정합화)
+from backend.seeds.gj_constants import GJ_BUSSTOPS as GJ_STOPS
+
+
+@stations_bp.route("/api/arrive/<int:busstop_id>")
+@limiter.limit("30 per minute")
+def arrive(busstop_id: int):
+    """광주 BIS 실시간 버스 도착 정보."""
+    data = _call_gj_bis("arriveInfo", {"BUSSTOP_ID": busstop_id})
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    items = _gj_bis_items(data, "ARRIVE_LIST")
+    return jsonify({
+        "status": "ok",
+        "data": {"busstop_id": busstop_id, "items": items},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@stations_bp.route("/api/lines")
+@limiter.limit("10 per minute")
+def lines():
+    """광주 BIS 전체 노선 목록."""
+    data = _call_gj_bis("lineInfo")
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    resp = data.get("RESPONSE", {})
+    list_key = next((k for k in resp if k != "RESULT"), None)
+    items = _gj_bis_items(data, list_key) if list_key else []
+    return jsonify({
+        "status": "ok",
+        "data": {"items": items, "count": len(items)},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@stations_bp.route("/api/bus_location/<int:line_id>")
+@limiter.limit("30 per minute")
+def bus_location(line_id: int):
+    """광주 BIS 실시간 버스 위치 (노선별 GPS 좌표).
+
+    2026-05-17: captest/bus_server.py에서 본 시스템으로 이관.
+    응답: items에 각 차량의 좌표·차량번호·진행 방향 등이 들어있음
+          (필드명은 광주 BIS 명세를 그대로 따름).
+    """
+    data = _call_gj_bis("busLocationInfo", {"LINE_ID": line_id})
+    if not data:
+        return jsonify({"status": "error", "message": "광주 BIS API 호출 실패", "code": 502}), 502
+    resp = data.get("RESPONSE", {})
+    list_key = next((k for k in resp if k != "RESULT"), None)
+    items = _gj_bis_items(data, list_key) if list_key else []
+    return jsonify({
+        "status": "ok",
+        "data": {"line_id": line_id, "items": items, "count": len(items)},
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@stations_bp.route("/api/gj-stops")
+@limiter.limit("60 per minute")
+def gj_stops():
+    """광주대 버스정류소 목록 (busstop_id 포함)."""
+    return jsonify({
+        "status": "ok",
+        "data": GJ_STOPS,
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+def _get_current_weather() -> dict | None:
+    """현재 날씨 데이터 조회 (recommend.py 등에서 재사용)."""
+    try:
+        now = datetime.now()
+        cached = fetchone(
+            "SELECT weather, temperature FROM weather_cache WHERE location = ? AND hour = ? "
+            "ORDER BY fetched_at DESC LIMIT 1",
+            ("seoul", now.hour),
+        )
+        if cached:
+            return {"weather": cached["weather"], "temperature": cached["temperature"]}
+    except Exception as e:
+        # weather_cache 조회 실패 → None 반환으로 호출자가 기본값 폴백 처리.
+        log.warning("_get_current_weather DB 조회 실패: %s", e)
+    return None
 
 
 def _parse_kma_items(items):

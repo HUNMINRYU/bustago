@@ -57,6 +57,30 @@
       </div>
     </section>
 
+    <!-- Realtime Counting Panel -->
+    <section class="panel counting-panel" id="counting-panel">
+      <h2>실시간 카운팅 <span class="live-badge">LIVE</span></h2>
+      <div class="counting-grid">
+        <div class="counting-card">
+          <span class="counting-value" id="cnt-waiting">—</span>
+          <span class="counting-label">현재 대기 인원</span>
+        </div>
+        <div class="counting-card">
+          <span class="counting-value" id="cnt-in">—</span>
+          <span class="counting-label">총 진입 (IN)</span>
+        </div>
+        <div class="counting-card">
+          <span class="counting-value" id="cnt-board">—</span>
+          <span class="counting-label">총 탑승 (BOARD)</span>
+        </div>
+        <div class="counting-card status-card">
+          <span class="status-dot" id="jetson-dot"></span>
+          <span class="counting-label" id="jetson-status">확인 중...</span>
+        </div>
+      </div>
+      <p class="counting-timestamp" id="counting-ts"></p>
+    </section>
+
     <!-- Chart + Map Row -->
     <section class="chart-map-row">
       <div class="panel chart-panel">

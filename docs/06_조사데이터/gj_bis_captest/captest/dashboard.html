@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>광주대 버스 실시간 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0b0f1a;
+    --surface:   #111827;
+    --surface2:  #1a2235;
+    --border:    #1f2d45;
+    --accent:    #3b82f6;
+    --accent2:   #06b6d4;
+    --green:     #10b981;
+    --yellow:    #f59e0b;
+    --red:       #ef4444;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans KR', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* 배경 그리드 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* 헤더 */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left { display: flex; align-items: center; gap: 14px; }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px var(--accent); }
+    50%       { box-shadow: 0 0 20px var(--accent); }
+  }
+
+  .header-title { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .header-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--green);
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+    padding: 4px 10px; border-radius: 20px;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse-g 1.5s infinite;
+  }
+
+  @keyframes pulse-g {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  #clock {
+    font-family: var(--mono); font-size: 13px; color: var(--muted);
+  }
+
+  /* 정류소 탭 */
+  .stop-tabs {
+    display: flex; gap: 8px; margin-bottom: 20px;
+  }
+
+  .stop-tab {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px; font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .stop-tab:hover { border-color: var(--accent); color: var(--text); }
+
+  .stop-tab.active {
+    background: rgba(59,130,246,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* 상단 통계 카드 */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 28px; font-weight: 600;
+    line-height: 1;
+  }
+
+  .stat-value.blue   { color: var(--accent); }
+  .stat-value.green  { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.red    { color: var(--red); }
+
+  .stat-unit { font-size: 13px; color: var(--muted); margin-left: 4px; }
+
+  /* 메인 그리드 */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+  }
+
+  /* 패널 공통 */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 13px; font-weight: 500; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .panel-icon {
+    width: 20px; height: 20px;
+    background: rgba(59,130,246,0.15);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  .refresh-btn {
+    font-size: 11px; font-family: var(--mono);
+    color: var(--muted);
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* 도착 테이블 */
+  .arrive-table { width: 100%; border-collapse: collapse; }
+
+  .arrive-table th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 400;
+    padding: 10px 18px; text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+
+  .arrive-table td {
+    padding: 13px 18px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(31,45,69,0.5);
+    vertical-align: middle;
+  }
+
+  .arrive-table tr:last-child td { border-bottom: none; }
+
+  .arrive-table tr {
+    transition: background 0.15s;
+    animation: fadeIn 0.3s ease both;
+  }
+
+  .arrive-table tr:hover { background: rgba(59,130,246,0.05); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .line-badge {
+    display: inline-block;
+    padding: 3px 8px; border-radius: 5px;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    background: rgba(59,130,246,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.3);
+    white-space: nowrap;
+  }
+
+  .line-badge.kind2 { background: rgba(6,182,212,0.15); color: var(--accent2); border-color: rgba(6,182,212,0.3); }
+  .line-badge.kind3 { background: rgba(245,158,11,0.15); color: var(--yellow); border-color: rgba(245,158,11,0.3); }
+
+  .remain-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+  .remain-bar {
+    flex: 1; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .remain-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  .soon  { color: var(--green);  }
+  .mid   { color: var(--yellow); }
+  .far   { color: var(--muted);  }
+
+  .arrive-flag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-family: var(--mono);
+    padding: 2px 7px; border-radius: 4px;
+  }
+
+  .arrive-flag.imminent {
+    background: rgba(16,185,129,0.15);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.3);
+    animation: blink 1s infinite;
+  }
+
+  .arrive-flag.normal {
+    background: rgba(100,116,139,0.1);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  /* 우측 패널 - 노선 목록 */
+  .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+  .line-list { padding: 8px 0; max-height: 380px; overflow-y: auto; }
+
+  .line-list::-webkit-scrollbar { width: 4px; }
+  .line-list::-webkit-scrollbar-track { background: transparent; }
+  .line-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .line-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba(31,45,69,0.4);
+  }
+
+  .line-item:hover { background: rgba(59,130,246,0.06); }
+  .line-item:last-child { border-bottom: none; }
+
+  .line-item-left { display: flex; align-items: center; gap: 10px; }
+
+  .line-num-tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px;
+    background: rgba(59,130,246,0.12);
+    color: var(--accent);
+    min-width: 36px; text-align: center;
+  }
+
+  .line-name { font-size: 12px; color: var(--text); max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .line-interval { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* 빈 상태 */
+  .empty-state {
+    text-align: center; padding: 48px 24px;
+    color: var(--muted); font-size: 13px;
+  }
+
+  .empty-state .icon { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
+
+  /* 로딩 */
+  .loading {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-size: 12px; font-family: var(--mono);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 10px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 갱신 카운터 */
+  .countdown {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .countdown-bar {
+    width: 60px; height: 2px;
+    background: var(--border); border-radius: 1px; overflow: hidden;
+  }
+
+  .countdown-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 1px;
+    transition: width 1s linear;
+  }
+
+  /* 저상버스 / 혼잡도 뱃지 */
+  .tag {
+    display: inline-block;
+    font-size: 10px; font-family: var(--mono);
+    padding: 1px 5px; border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  .tag-low  { background: rgba(16,185,129,0.15); color: var(--green); }
+  .tag-ac   { background: rgba(6,182,212,0.15);  color: var(--accent2); }
+
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+    .right-col { flex-direction: row; flex-wrap: wrap; }
+    .right-col .panel { flex: 1 1 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 헤더 -->
+  <header>
+    <div class="header-left">
+      <div class="logo-dot"></div>
+      <div>
+        <div class="header-title">광주대 버스 실시간 대시보드</div>
+        <div class="header-sub">광주광역시 버스정보시스템 (gj_bis)</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- 정류소 탭 -->
+  <div class="stop-tabs" id="stopTabs"></div>
+
+  <!-- 통계 카드 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">도착 예정 버스</div>
+      <div class="stat-value blue" id="statTotal">-<span class="stat-unit">대</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">최단 도착</div>
+      <div class="stat-value green" id="statMin">-<span class="stat-unit">분</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">곧 도착 (3분↓)</div>
+      <div class="stat-value yellow" id="statSoon">-<span class="stat-unit">대</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">저상버스</div>
+      <div class="stat-value" id="statLow">-<span class="stat-unit">대</span></div>
+    </div>
+  </div>
+
+  <!-- 메인 그리드 -->
+  <div class="main-grid">
+
+    <!-- 도착 정보 -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-icon">🚌</div>
+          도착 예정 버스
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="countdown">
+            갱신까지 <div class="countdown-bar"><div class="countdown-fill" id="cdBar"></div></div>
+            <span id="cdSec">30</span>s
+          </div>
+          <button class="refresh-btn" onclick="loadArrive()">↻ 새로고침</button>
+        </div>
+      </div>
+      <div id="arriveBody">
+        <div class="loading"><div class="spinner"></div><br>불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- 우측 패널 -->
+    <div class="right-col">
+
+      <!-- 노선 목록 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><div class="panel-icon">🗺</div>전체 노선 목록</div>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="lineCount">-</span>
+        </div>
+        <div class="line-list" id="lineList">
+          <div class="loading"><div class="spinner"></div><br>불러오는 중...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+const STOPS = [];
+let currentStop = null;
+let countdown = 30;
+let cdInterval = null;
+
+// ── 시계 ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('ko-KR', {hour12: false});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── 정류소 탭 초기화 ──
+async function initStops() {
+  const res = await fetch(`${API}/stops`);
+  const data = await res.json();
+  const tabs = document.getElementById('stopTabs');
+
+  data.stops.forEach((stop, i) => {
+    STOPS.push(stop);
+    const btn = document.createElement('button');
+    btn.className = 'stop-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = stop.name;
+    btn.onclick = () => selectStop(i);
+    tabs.appendChild(btn);
+  });
+
+  selectStop(0);
+}
+
+function selectStop(idx) {
+  currentStop = STOPS[idx];
+  document.querySelectorAll('.stop-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === idx);
+  });
+  loadArrive();
+}
+
+// ── 도착 정보 로드 ──
+async function loadArrive() {
+  if (!currentStop) return;
+  document.getElementById('arriveBody').innerHTML =
+    '<div class="loading"><div class="spinner"></div><br>불러오는 중...</div>';
+
+  resetCountdown();
+
+  try {
+    const res = await fetch(`${API}/arrive/${currentStop.busstop_id}`);
+    const data = await res.json();
+    renderArrive(data.items || []);
+  } catch(e) {
+    document.getElementById('arriveBody').innerHTML =
+      '<div class="empty-state"><div class="icon">⚠️</div>서버에 연결할 수 없습니다.<br>bus_server.py 실행 여부를 확인하세요.</div>';
+  }
+}
+
+function renderArrive(items) {
+  // 통계 업데이트
+  const total = items.length;
+  const mins  = items.map(i => parseInt(i.REMAIN_MIN) || 999);
+  const minV  = mins.length ? Math.min(...mins) : null;
+  const soon  = mins.filter(m => m <= 3).length;
+  const low   = items.filter(i => i.LOW_BUS == 1).length;
+
+  document.getElementById('statTotal').innerHTML = `${total}<span class="stat-unit">대</span>`;
+  document.getElementById('statMin').innerHTML   = minV !== null && minV < 999
+    ? `${minV}<span class="stat-unit">분</span>` : `-<span class="stat-unit">분</span>`;
+  document.getElementById('statSoon').innerHTML  = `${soon}<span class="stat-unit">대</span>`;
+  document.getElementById('statLow').innerHTML   = `${low}<span class="stat-unit">대</span>`;
+  document.getElementById('statLow').className   = 'stat-value ' + (low > 0 ? 'green' : '');
+
+  if (!items.length) {
+    document.getElementById('arriveBody').innerHTML =
+      '<div class="empty-state"><div class="icon">🚌</div>현재 도착 예정 버스가 없습니다.</div>';
+    return;
+  }
+
+  // 남은 시간 기준 정렬
+  items.sort((a, b) => (parseInt(a.REMAIN_MIN)||999) - (parseInt(b.REMAIN_MIN)||999));
+
+  const maxMin = Math.max(...items.map(i => parseInt(i.REMAIN_MIN)||1));
+
+  const rows = items.map((item, idx) => {
+    const min    = parseInt(item.REMAIN_MIN) || 0;
+    const stop   = parseInt(item.REMAIN_STOP) || 0;
+    const kind   = item.LINE_KIND;
+    const pct    = Math.max(5, 100 - Math.round((min / maxMin) * 100));
+    const barClr = min <= 3 ? '#10b981' : min <= 10 ? '#f59e0b' : '#3b82f6';
+    const minClr = min <= 3 ? 'soon' : min <= 10 ? 'mid' : 'far';
+    const imminent = item.ARRIVE_FLAG == 1;
+    const badgeKind = kind == 2 ? 'kind2' : kind == 3 ? 'kind3' : '';
+
+    return `
+      <tr style="animation-delay:${idx * 0.04}s">
+        <td>
+          <span class="line-badge ${badgeKind}">${item.SHORT_LINE_NAME || item.LINE_NAME}</span>
+          ${item.LOW_BUS == 1 ? '<span class="tag tag-low">저상</span>' : ''}
+          ${item.METRO_FLAG == 1 ? '<span class="tag tag-ac">급행</span>' : ''}
+        </td>
+        <td style="font-size:11px;color:var(--muted);max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${item.DIR_START} → ${item.DIR_END}
+        </td>
+        <td>
+          <div class="remain-bar-wrap">
+            <div class="remain-bar">
+              <div class="remain-bar-fill" style="width:${pct}%;background:${barClr}"></div>
+            </div>
+            <span class="${minClr}" style="font-family:var(--mono);font-size:13px;font-weight:600;min-width:36px">
+              ${min}분
+            </span>
+          </div>
+        </td>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${stop}정류장</td>
+        <td>
+          <span class="arrive-flag ${imminent ? 'imminent' : 'normal'}">
+            ${imminent ? '● 곧 도착' : '진행중'}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--muted)">${item.BUSSTOP_NAME}</td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('arriveBody').innerHTML = `
+    <table class="arrive-table">
+      <thead>
+        <tr>
+          <th>노선</th>
+          <th>방향</th>
+          <th>도착 예정</th>
+          <th>남은 정류장</th>
+          <th>상태</th>
+          <th>현재 위치</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── 노선 목록 로드 ──
+async function loadLines() {
+  try {
+    const res  = await fetch(`${API}/lines`);
+    const data = await res.json();
+    const items = data.items || [];
+
+    document.getElementById('lineCount').textContent = `${items.length}개`;
+
+    const html = items.map(line => {
+      const kind = line.LINE_KIND;
+      const color = kind == 2 ? 'var(--accent2)' : kind == 3 ? 'var(--yellow)' : 'var(--accent)';
+      return `
+        <div class="line-item">
+          <div class="line-item-left">
+            <span class="line-num-tag" style="color:${color}">${line.LINE_ID}</span>
+            <span class="line-name">${line.LINE_NAME}</span>
+          </div>
+          <span class="line-interval">${line.RUN_INTERVAL}분</span>
+        </div>`;
+    }).join('');
+
+    document.getElementById('lineList').innerHTML = html || '<div class="empty-state">노선 없음</div>';
+  } catch(e) {
+    document.getElementById('lineList').innerHTML =
+      '<div class="empty-state">노선 정보 로드 실패</div>';
+  }
+}
+
+// ── 카운트다운 ──
+function resetCountdown() {
+  countdown = 30;
+  if (cdInterval) clearInterval(cdInterval);
+  cdInterval = setInterval(() => {
+    countdown--;
+    document.getElementById('cdSec').textContent = countdown;
+    document.getElementById('cdBar').style.width = `${(countdown / 30) * 100}%`;
+    if (countdown <= 0) {
+      loadArrive();
+    }
+  }, 1000);
+}
+
+// ── 초기화 ──
+initStops();
+loadLines();
+</script>
+</body>
+</html>

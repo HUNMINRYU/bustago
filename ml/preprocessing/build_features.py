@@ -87,11 +87,18 @@ def build_feature_dataframe(df_boarding, df_weather=None):
     """
     최종 학습용 Feature DataFrame 구축
 
-    Features:
-        hour, weekday_approx, weather, temperature, rain,
+    Features (2026-05-16 갱신, weekday 제거):
+        hour, weather, temperature, rain,
         prev_boarding, prev_alighting, route_count, boarding, alighting
     Label:
         label (0=여유, 1=보통, 2=혼잡, 3=매우혼잡)
+
+    Note:
+        서울 공공데이터(use_month 단위 월별 집계)에는 요일 정보가 없다.
+        원본 weekday 컬럼이 -1로 채워져 있고 과거 build_features.py는
+        hour < 12 → 0, else 2 placeholder로 덮어썼는데 이는 의미 없는 신호였다.
+        2026-05-16 진단 P0 반영으로 weekday feature 자체를 제거.
+        광주대 자체 카운팅 데이터에 실제 요일이 확보되면 별도 학습 트랙에서 부활.
     """
 
     # 1. 혼잡도 라벨 생성
@@ -104,10 +111,10 @@ def build_feature_dataframe(df_boarding, df_weather=None):
         how="left"
     )
 
-    # 3. 월 → 대략적 요일 추정 (use_month 기반)
-    # 월 데이터이므로 정확한 요일은 없지만, 모델 구조 검증용으로 placeholder 사용
-    # 광주 재학습 시 실제 요일 데이터로 교체 예정
-    df["weekday"] = df["hour"].apply(lambda h: 0 if h < 12 else 2)  # placeholder
+    # 3. weekday 제거: 원본 데이터에 요일 정보 없음 (모두 -1).
+    # 이전 코드의 hour 기반 placeholder는 의미 없는 신호 → 진단 P0로 제거.
+    if "weekday" in df.columns:
+        df = df.drop(columns=["weekday"])
 
     # 4. 기상 데이터 결합
     if df_weather is not None and not df_weather.empty:
@@ -145,9 +152,9 @@ def build_feature_dataframe(df_boarding, df_weather=None):
         df["humidity"] = 50.0
         df["wind_speed"] = 2.0
 
-    # 5. 최종 Feature 선택
+    # 5. 최종 Feature 선택 (weekday 제거, 2026-05-16 진단 P0 반영)
     feature_cols = [
-        "hour", "weekday",
+        "hour",
         "weather", "temperature", "rain",
         "prev_boarding", "prev_alighting",
         "route_count",

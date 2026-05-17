@@ -1,6 +1,6 @@
 """
 BUSTAGO - 혼잡도 예측 인터페이스
-학습된 Random Forest 모델을 로드하여 혼잡도를 예측한다.
+학습된 모델(LightGBM 우선, 없으면 RandomForest)을 로드하여 혼잡도를 예측한다.
 
 Backend에서 호출하는 함수:
     predict_congestion(features: dict) -> dict
@@ -10,7 +10,6 @@ Usage:
 
     result = predict_congestion({
         "hour": 8,
-        "weekday": 1,
         "weather": 0,
         "temperature": 20.0,
         "prev_boarding": 50,
@@ -18,15 +17,19 @@ Usage:
         "route_count": 12,
     })
     # result: {"level": 2, "label": "혼잡", "probabilities": [0.1, 0.2, 0.5, 0.2]}
+
+Note:
+    2026-05-16 진단 P0 반영으로 weekday feature를 제거함 (서울 공공데이터에
+    요일 정보 없음). features dict에 'weekday'가 들어 있으면 무시함.
 """
 
 import os
 import numpy as np
 import joblib
 
-# Feature 컬럼 순서 (train_rf.py 기준 - rain/boarding/alighting 제거)
+# Feature 컬럼 순서 (build_features.py 기준, 2026-05-16 weekday 제거)
 FEATURE_COLS = [
-    "hour", "weekday",
+    "hour",
     "weather", "temperature",
     "prev_boarding", "prev_alighting",
     "route_count",
@@ -34,12 +37,22 @@ FEATURE_COLS = [
 
 LABEL_NAMES = {0: "여유", 1: "보통", 2: "혼잡", 3: "매우혼잡"}
 
-# 모델 경로 (이 파일 기준)
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_MODEL_PATH = os.path.join(MODEL_DIR, "rf_model.pkl")
+# lgbm_model.pkl 우선, 없으면 rf_model.pkl fallback
+_LGBM_PATH = os.path.join(MODEL_DIR, "lgbm_model.pkl")
+_RF_PATH = os.path.join(MODEL_DIR, "rf_model.pkl")
 
-# 모델 캐시 (한 번만 로드)
 _model_cache = None
+
+
+def _resolve_model_path() -> str:
+    if os.path.exists(_LGBM_PATH):
+        return _LGBM_PATH
+    if os.path.exists(_RF_PATH):
+        return _RF_PATH
+    raise FileNotFoundError(
+        "모델 파일 없음. train_lgbm.py 또는 train_rf.py를 먼저 실행하세요."
+    )
 
 
 def load_model(model_path: str = None):
@@ -47,16 +60,13 @@ def load_model(model_path: str = None):
     global _model_cache
 
     if model_path is None:
-        model_path = DEFAULT_MODEL_PATH
+        model_path = _resolve_model_path()
 
     if _model_cache is not None:
         return _model_cache
 
     if not os.path.exists(model_path):
-        raise FileNotFoundError(
-            f"모델 파일 없음: {model_path}\n"
-            f"먼저 train_rf.py를 실행하여 모델을 학습하세요."
-        )
+        raise FileNotFoundError(f"모델 파일 없음: {model_path}")
 
     _model_cache = joblib.load(model_path)
     return _model_cache
@@ -68,8 +78,9 @@ def predict_congestion(features: dict, model_path: str = None) -> dict:
 
     Args:
         features: dict - Feature 값 딕셔너리
-            필수 키: hour, weekday, weather, temperature,
+            필수 키: hour, weather, temperature,
                      prev_boarding, prev_alighting, route_count
+            (weekday는 받아도 무시함 — 2026-05-16 진단 P0)
         model_path: str - 모델 파일 경로 (기본: rf_model.pkl)
 
     Returns:
@@ -147,7 +158,6 @@ if __name__ == "__main__":
     # 테스트 예측
     test_input = {
         "hour": 8,
-        "weekday": 1,
         "weather": 0,
         "temperature": 20.0,
         "prev_boarding": 50,
