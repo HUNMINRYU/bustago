@@ -20,8 +20,15 @@ build/
 # Claude / AI tools
 .claude/
 
-# Data (regenerated at runtime)
+# Data (regenerated at runtime) — 2026-05-17 진단 HW-3 보강
 data/
+datasets/
+runs/
+*.pt
+*.engine
+*.onnx
+*.csv
+*.xlsx
 
 # OS files
 .DS_Store

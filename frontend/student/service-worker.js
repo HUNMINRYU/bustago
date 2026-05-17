@@ -1,6 +1,11 @@
 // BUSTAGO Service Worker - Offline Cache
+//
+// CACHE_NAME 갱신 규칙 (2026-05-17 진단 CL-4):
+//   정적 자산(index.html / style.css / app.js / shared/api.js / manifest.json) 변경 시 반드시 버전 증가.
+//   activate 핸들러가 이전 캐시를 자동 삭제하므로 사용자 측에서는 자동 갱신됨.
+//   versions: v1 (초기), v2-demo (2026-05-21 시연 직전 베이스라인)
 
-var CACHE_NAME = 'bustago-v1';
+var CACHE_NAME = 'bustago-v2-demo';
 var CACHE_URLS = [
   'index.html',
   'style.css',
