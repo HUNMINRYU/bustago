@@ -1,8 +1,21 @@
 ---
 # HW 설치 가이드 Part 2 — Raspberry Pi 4 설정 + 통합 테스트
 
+> **버전:** 1.1 (2026-05-22 갱신)
 > 작성일: 2026-05-01 | 담당: 이건영 (Pi), 이트겔 (서버/통합), 류훈민 (통합 확인)
-> 전제: Part 1 Jetson 설정 완료 상태에서 시작
+> 전제: Part 1 Jetson 설정 완료 상태에서 시작 (counter.py 단독 동작 검증됨)
+
+---
+
+## ⚠️ 2026-05-22 현황 (D-13)
+
+- **Pi 아직 미연결.** 6/4 경진대회까지 13일.
+- **백엔드 구성 변경**: 5/22 결정으로 백엔드를 **Jetson 자체에서 구동**한다 (별도 서버 X).
+  → 본 가이드의 `SERVER_IP`는 **Jetson IP**(현재 `172.30.1.75`)이다.
+  → 단, Pi와 Jetson은 **같은 WiFi**에 있어야 한다.
+- **Pi 풀 셋업 일정**: D-12~D-10 (3일) — 본 가이드 1~6단계 순차 진행.
+- **Pi 없이 시연 가능 여부**: 노트북 브라우저로 Student PWA를 띄우면 동일하게 동작.
+  Pi는 "정류장 키오스크" 컨셉을 물리적으로 보여주는 역할일 뿐, 데이터 흐름에는 들어가지 않는다 (§9 Pi 미연결 폴백 참조).
 
 ---
 
@@ -57,7 +70,7 @@ sudo raspi-config
 sudo nano /etc/systemd/system/bustago-kiosk.service
 ```
 
-아래 내용 입력 (SERVER_IP를 실제 서버 IP로 변경):
+아래 내용 입력. **SERVER_IP는 Jetson IP** (현재 `172.30.1.75`, `ip addr show wlan0`로 확인):
 
 ```ini
 [Unit]
@@ -70,13 +83,23 @@ User=pi
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium-browser     --kiosk     --noerrdialogs     --disable-infobars     --no-first-run     --disable-restore-session-state     --disable-session-crashed-bubble     http://SERVER_IP/student/index.html
+ExecStart=/usr/bin/chromium-browser \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-restore-session-state \
+    --disable-session-crashed-bubble \
+    http://172.30.1.75:5000/student/index.html
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=graphical.target
 ```
+
+> Jetson IP가 바뀌면 이 파일의 마지막 URL과 `watchdog_pi.sh` 안의 `SERVICE` 환경도 함께 갱신.
+> Jetson 측 백엔드는 **`host="0.0.0.0"`**로 떠야 외부 접근 가능 (Flask `app.run` 또는 `python3 -m backend.app` 기본값으로 OK).
 
 ### 3.2 서비스 등록 및 시작
 ```bash
@@ -106,30 +129,45 @@ echo "unclutter -idle 0 -root &" >> /home/pi/.bashrc
 
 ### 4.3 WiFi 연결 안정성 확인
 ```bash
-# 서버 핑 테스트
-ping -c 10 SERVER_IP
+# Jetson 핑 테스트 (Jetson IP로 — 위 §3.1에서 확인한 값)
+ping -c 10 172.30.1.75
 # → 패킷 손실 0% 확인
 
 # API 응답 확인
-curl "http://SERVER_IP/api/health"
+curl "http://172.30.1.75:5000/api/health"
 # → {"status":"ok"} 출력되면 성공
+
+# 만약 실패하면: Jetson 측 백엔드가 0.0.0.0으로 떠있는지, 같은 WiFi인지,
+# 방화벽이 5000번 포트 막고 있지 않은지 순서대로 확인
 ```
 
 ---
 
 ## 5단계: Watchdog Pi 설정
 
+> ⚠️ **2026-05-22 수정 반영**: `watchdog_pi.sh`의 `chromium-browse` 오타가 수정됐다
+> (`chromium-browser`로). 반드시 **최신 develop 브랜치**에서 받을 것 — 구버전을
+> 받으면 키오스크가 2분마다 재시작된다.
+
 ```bash
-# watchdog_pi.sh 복사
-scp /path/to/bustago/hardware/watchdog_pi.sh pi@bustago-kiosk.local:~/
+# 옵션 A: Jetson에서 clone 받은 저장소에서 직접 복사 (같은 WiFi 전제)
+scp ahble@172.30.1.75:~/bustago/hardware/watchdog_pi.sh pi@bustago-kiosk.local:~/
+
+# 옵션 B: Pi가 인터넷 되면 git clone으로 직접 가져오기 (권장)
+ssh pi@bustago-kiosk.local
+git clone https://github.com/HUNMINRYU/bustago.git ~/bustago
+ls ~/bustago/hardware/watchdog_pi.sh
+# 검증: 11행이 chromium-browser인지 확인
+grep "chromium-browser" ~/bustago/hardware/watchdog_pi.sh
+# → chromium-browser가 보이면 OK. chromium-browse(끝 r 없음)면 구버전 → git pull
 
 # 실행 권한 부여
-chmod +x ~/watchdog_pi.sh
+chmod +x ~/bustago/hardware/watchdog_pi.sh
 
 # crontab 등록
 crontab -e
-# 아래 줄 추가:
-# */2 * * * * /home/pi/watchdog_pi.sh >> /var/log/bustago-watchdog-pi.log 2>&1
+# 아래 줄 추가 (경로 주의):
+# */2 * * * * /home/pi/bustago/hardware/watchdog_pi.sh >> /var/log/bustago-watchdog-pi.log 2>&1
 
 # 등록 확인
 crontab -l
@@ -139,29 +177,42 @@ crontab -l
 
 ## 6단계: 시스템 통합 테스트
 
-> **전제:** Jetson + Pi + 서버 모두 동작 중인 상태
+> **전제:** Jetson (백엔드 + counter.py) + Pi 모두 같은 WiFi에서 동작 중.
+> 5/22 결정으로 별도 서버 없이 백엔드는 Jetson에서 구동.
 
 ### 6.1 Admin 대시보드 실시간 확인
 ```bash
-# 운영자 PC 브라우저에서:
-# http://SERVER_IP/admin/index.html
+# 운영자 노트북 브라우저에서 (Jetson IP):
+# http://172.30.1.75:5000/admin/
 
 # 확인 항목:
 # [ ] Jetson 연결 상태 표시 (녹색 dot)
 # [ ] 대기/IN/BOARD 수치 표시 (10초마다 갱신)
 # [ ] 실제 사람이 지나갔을 때 IN 카운트 증가
+# [ ] 광주대 지도 표시 (서울 강남 아님 — 5/22 수정 반영 확인)
 ```
 
 ### 6.2 E2E 데이터 흐름 확인
 ```bash
-# 1. Jetson에서 counter.py POST 확인
-python3 counter.py --camera 0 --model ~/yolo11n.engine   --server http://SERVER_IP/api/crowd-count   --station-id INS01 --post-interval 10
+# 1. Jetson에서 백엔드 + counter.py 동시 실행
+#    (터미널 2개 또는 tmux/screen)
+ssh ahble@172.30.1.75
+# Tmux 권장:
+tmux new -s bustago
+# 창 1
+cd ~/bustago && python3 -m backend.app
+# Ctrl+B → " (가로 분할)
+cd ~/bustago/hardware && python3 counter.py \
+    --camera 0 --model yolo11n.pt \
+    --server http://localhost:5000/api/crowd-count \
+    --station-id INS01 --post-interval 10 --debug
 
-# 2. 서버 DB에서 데이터 증가 확인 (서버에서 실행)
-watch -n 5 'sqlite3 backend/bustago.db "SELECT * FROM crowd_counts ORDER BY created_at DESC LIMIT 3;"'
+# 2. Jetson DB에서 데이터 증가 확인 (별도 SSH)
+ssh ahble@172.30.1.75
+watch -n 5 'sqlite3 ~/bustago/backend/bustago.db "SELECT * FROM crowd_counts ORDER BY created_at DESC LIMIT 3;"'
 
 # 3. Student PWA에서 혼잡도 표시 확인
-# → Pi 화면 또는 http://SERVER_IP/student/index.html 에서 INS01 선택
+# → Pi 화면 또는 http://172.30.1.75:5000/student/index.html 에서 INS01 선택
 
 # 4. Admin 대시보드 카운팅 패널 실시간 확인
 # → 사람 통과 → IN 증가 → 10초 후 Admin 패널 반영
@@ -175,10 +226,10 @@ watch -n 5 'sqlite3 backend/bustago.db "SELECT * FROM crowd_counts ORDER BY crea
 |------|----------|
 | Jetson 미도착 / 고장 | `python3 counter.py --camera 0 --model yolo11n.pt --debug` (PC 웹캠) |
 | TensorRT 변환 실패 | `.pt` 모델로 대체 (FPS 낮지만 기능 동작) |
-| Pi 화면 안 나옴 | 노트북 브라우저로 PWA 직접 접속 대체 |
-| WiFi 불안정 | 핫스팟 라우터 + 유선 연결 혼용 |
-| 서버 응답 없음 | `python3 backend/app.py` 직접 실행 확인 |
-| DB 데이터 없음 | `curl -X POST http://SERVER_IP/api/crowd-count -H "Content-Type: application/json" -d '{"station_id":"INS01","count_in":5,"count_board":3,"current_waiting":2}'` 로 더미 데이터 주입 |
+| Pi 화면 안 나옴 | 노트북 브라우저로 `http://172.30.1.75:5000/student/index.html` 직접 접속 대체 |
+| WiFi 불안정 | 모바일 핫스팟 라우터 (Jetson·Pi·노트북 모두 같은 핫스팟에) |
+| 백엔드 응답 없음 | Jetson에서 `python3 -m backend.app` 직접 실행 확인. 포트 5000 열림 확인: `curl http://localhost:5000/api/health` |
+| DB 데이터 없음 | `curl -X POST http://172.30.1.75:5000/api/crowd-count -H "Content-Type: application/json" -d '{"station_id":"INS01","count_in":5,"count_board":3,"current_waiting":2}'` |
 
 ---
 
@@ -212,19 +263,75 @@ Pi 측:
 
 ---
 
-## 시연 당일 체크리스트 (5/21)
+## 9단계: Pi 미연결 폴백 시나리오 (현실)
+
+Pi 셋업이 시연 일정 안에 끝나지 않거나, 발표 형식이 **부스/판넬형(노트북 시연)**이면
+Pi는 *없어도 시스템은 동일하게 동작한다.*
+
+### 9.1 Pi 역할의 본질
+| 컴포넌트 | 책임 | Pi 미연결 영향 |
+|---|---|---|
+| Jetson + 카메라 | 카운팅 → POST | **0%** — 자체 동작 |
+| Backend (Jetson) | DB · API | **0%** — Pi 의존 없음 |
+| ML 예측 | RandomForest | **0%** — Pi 의존 없음 |
+| Student PWA 표시 | 브라우저 한 개 | Pi 대신 **노트북 브라우저**로 대체 가능 |
+| Admin 대시보드 | 노트북에서 봄 | Pi 의존 없음 |
+
+→ Pi는 "현장 정류장 사이니지"이지 시스템 핵심이 아니다.
+
+### 9.2 발표 시 멘트 (Pi 미연결인 경우)
+> "키오스크 H/W는 **포트폴리오용 구조 결정 포인트**입니다. 실제 셋업은 광주대 현장
+> 설치 단계에서 진행 예정이고, 오늘 시연은 노트북 브라우저로 Student PWA를 띄워서
+> Pi 키오스크와 **동일한 사용자 경험**을 보여드립니다 — Pi든 노트북이든 같은 PWA를
+> 같은 백엔드에서 받습니다."
+
+### 9.3 노트북 폴백 셋업
+```bash
+# 노트북에서 (어떤 OS든):
+# Jetson과 같은 WiFi 접속 확인
+ping 172.30.1.75
+
+# 브라우저 전체화면(F11)으로 PWA 띄우기
+# Chrome/Edge → 주소창에 입력 → F11
+http://172.30.1.75:5000/student/index.html
+
+# 시연 후 Admin 화면도 같은 브라우저 새 탭으로:
+http://172.30.1.75:5000/admin/
+```
+
+이 구성으로 6/4 라이브 시연은 **100% 가능**하다. Pi는 "있으면 더 좋은 사이니지"이지
+필수 의존성이 아니다.
+
+---
+
+## 시연 당일 체크리스트 (6/4 경진대회)
 
 ```
 시연 1시간 전:
-[ ] 서버 실행 확인 (Docker 또는 직접 실행)
-[ ] Jetson counter.py 실행 확인
-[ ] Admin 대시보드 녹색 dot 확인
-[ ] Student PWA 정상 표시 확인
-[ ] 비상 더미 데이터 주입 명령어 메모 준비
+[ ] Jetson 부팅 + WiFi 연결 확인 (`ip addr show wlan0`)
+[ ] Jetson에서 백엔드 실행: `cd ~/bustago && python3 -m backend.app`
+[ ] curl http://localhost:5000/api/health → status ok
+[ ] Jetson에서 counter.py 실행 (--debug 모드, IN/BOARD 라인 위치 OK 확인)
+[ ] 노트북 브라우저로 http://<Jetson IP>:5000/admin/ 접속 → 녹색 dot 확인
+[ ] Student PWA: http://<Jetson IP>:5000/student/index.html → INS01 선택 → 혼잡도 표시
+[ ] (Pi 사용 시) Pi systemctl status bustago-kiosk → active
+[ ] 비상 더미 데이터 주입 명령어 메모/터미널 히스토리 준비
 
 시연 직전:
-[ ] Admin 대시보드 DB 카운트 리셋 (필요 시)
+[ ] (필요 시) Admin DB 카운트 리셋: `sqlite3 ~/bustago/backend/bustago.db "DELETE FROM crowd_counts WHERE station_id='INS01';"`
 [ ] 브라우저 확대율 100% 설정
-[ ] 화면 공유 또는 빔프로젝터 연결 확인
+[ ] 화면 공유 또는 빔프로젝터 연결 확인 (특히 HDMI/USB-C 어댑터)
+[ ] 모바일 핫스팟 백업 준비 (현장 WiFi 불안 대비)
+[ ] 사전 녹화 시연 영상 1세트 (노트북 / USB) 보관
 ```
+
+---
+
+## 변경 이력
+
+| 일자 | 버전 | 변경 |
+|------|------|------|
+| 2026-05-01 | v1.0 | 초안 (이건영 작성) |
+| 2026-05-22 | v1.1 | 백엔드 Jetson 자체 구동으로 변경 반영 (`SERVER_IP` → Jetson IP 명시), `watchdog_pi.sh` 오타 수정 반영, §9 Pi 미연결 폴백 시나리오 추가, 시연 체크리스트 6/4용으로 갱신 |
+
 ---
