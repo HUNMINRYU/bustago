@@ -45,9 +45,17 @@ if ('serviceWorker' in navigator) {
 }
 
 // Load stations from API on init
+// 광주 정류장(INS01, GATE01, GJ*)을 상단에 표시하고 INS01을 자동 선택 (시연 UX)
 (async function loadStationOptions() {
   var data = await fetchStations();
   if (data && Array.isArray(data)) {
+    // 광주 정류장 우선 정렬: 광주(INS01/GATE01/GJ*)는 앞으로, 서울은 뒤로
+    data.sort(function(a, b) {
+      var aGJ = /^(INS|GATE|GJ)/.test(a.ars_no) ? 0 : 1;
+      var bGJ = /^(INS|GATE|GJ)/.test(b.ars_no) ? 0 : 1;
+      return aGJ - bGJ;
+    });
+
     data.forEach(function (s) {
       var opt = document.createElement('option');
       opt.value = s.ars_no;
@@ -57,6 +65,15 @@ if ('serviceWorker' in navigator) {
         STATION_BUSSTOP_MAP[s.ars_no] = s.gj_busstop_id;
       }
     });
+
+    // 기본 선택: INS01(인성관 셔틀, 시연 메인 정류장) → 없으면 첫 광주 정류장
+    var defaultStation = data.find(function(s) { return s.ars_no === 'INS01'; })
+                      || data.find(function(s) { return /^(GATE|GJ)/.test(s.ars_no); })
+                      || data[0];
+    if (defaultStation) {
+      stationSelect.value = defaultStation.ars_no;
+      stationSelect.dispatchEvent(new Event('change'));
+    }
   }
 })();
 
