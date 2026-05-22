@@ -12,7 +12,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory, abort
 from flask_cors import CORS
 from backend.config import DEBUG, PORT
 from backend.models.db import init_db
@@ -60,6 +60,27 @@ def create_app():
     @app.route("/api/health")
     def health():
         return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
+
+    # ─── Frontend 정적 파일 서빙 ───────────────────────────────────────────────
+    # Pi 키오스크 / 노트북 브라우저가 같은 포트(5000)로 PWA·Admin·shared 접근.
+    # 운영 시 nginx 사용하면 이 라우트는 무시되고 nginx가 우선 처리.
+    FRONTEND_ROOT = os.path.join(PROJECT_ROOT, "frontend")
+    _ALLOWED_DIRS = {"student", "admin", "shared"}
+
+    @app.route("/<dir>/")
+    @app.route("/<dir>/<path:filename>")
+    def frontend_static(dir, filename="index.html"):
+        if dir not in _ALLOWED_DIRS:
+            abort(404)
+        target = os.path.join(FRONTEND_ROOT, dir)
+        if not os.path.isdir(target):
+            abort(404)
+        return send_from_directory(target, filename)
+
+    @app.route("/")
+    def root_redirect():
+        # 루트 접근 시 Student PWA로 안내
+        return send_from_directory(os.path.join(FRONTEND_ROOT, "student"), "index.html")
 
     # 전역 에러 핸들러
     @app.errorhandler(400)
