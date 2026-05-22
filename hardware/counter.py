@@ -48,50 +48,50 @@ log = logging.getLogger("counter")
 # Line Crossing Counter
 # ---------------------------------------------------------------------------
 class LineCrossingCounter:
-    """가상 라인 2개(IN, BOARD)를 기준으로 Track ID별 통과를 판정."""
+    """세로 가상 라인 2개(IN, BOARD)를 기준으로 Track ID별 통과를 판정."""
 
-    def __init__(self, frame_height: int, in_ratio: float = 0.7, board_ratio: float = 0.3):
+    def __init__(self, frame_width: int, in_ratio: float = 0.3, board_ratio: float = 0.7):
         """
         Args:
-            frame_height: 프레임 세로 해상도
-            in_ratio: IN 라인의 y 위치 비율 (0=상단, 1=하단). 정류장 진입 라인.
-            board_ratio: BOARD 라인의 y 위치 비율. 버스 탑승 라인.
+            frame_width: 프레임 가로 해상도
+            in_ratio: IN 라인의 x 위치 비율 (0=좌, 1=우). 정류장 진입 라인(좌측).
+            board_ratio: BOARD 라인의 x 위치 비율. 버스 탑승 라인(우측).
         """
-        self.in_line_y = int(frame_height * in_ratio)
-        self.board_line_y = int(frame_height * board_ratio)
+        self.in_line_x = int(frame_width * in_ratio)
+        self.board_line_x = int(frame_width * board_ratio)
 
         self.count_in = 0       # IN 라인 통과 (정류장 진입)
         self.count_board = 0    # BOARD 라인 통과 (버스 탑승)
 
-        # Track ID별 이전 프레임 중심 y 좌표 (DeepSORT track_id는 str)
-        self._prev_y: dict[str, float] = {}
+        # Track ID별 이전 프레임 중심 x 좌표 (DeepSORT track_id는 str)
+        self._prev_x: dict[str, float] = {}
         # Track ID별 라인 통과 여부 (중복 카운팅 방지)
         self._crossed_in: set[str] = set()
         self._crossed_board: set[str] = set()
 
-    def update(self, track_id: str, cy: float):
-        """Track ID의 현재 중심 y 좌표로 라인 통과 여부를 판정.
+    def update(self, track_id: str, cx: float):
+        """Track ID의 현재 중심 x 좌표로 라인 통과 여부를 판정.
 
         Args:
             track_id: DeepSORT가 부여한 고유 Track ID
-            cy: 바운딩 박스 중심 y 좌표
+            cx: 바운딩 박스 중심 x 좌표
         """
-        prev = self._prev_y.get(track_id)
-        self._prev_y[track_id] = cy
+        prev = self._prev_x.get(track_id)
+        self._prev_x[track_id] = cx
 
         if prev is None:
             return
 
-        # IN 라인: 위→아래 통과 (정류장 진입)
+        # IN 라인: 좌→우 통과 (정류장 진입)
         if track_id not in self._crossed_in:
-            if prev < self.in_line_y <= cy:
+            if prev < self.in_line_x <= cx:
                 self.count_in += 1
                 self._crossed_in.add(track_id)
                 log.info("Track #%s: IN line crossed (진입). Total IN=%d", track_id, self.count_in)
 
-        # BOARD 라인: 아래→위 통과 (버스 탑승)
+        # BOARD 라인: 좌→우 통과 (버스 탑승)
         if track_id not in self._crossed_board:
-            if prev > self.board_line_y >= cy:
+            if prev < self.board_line_x <= cx:
                 self.count_board += 1
                 self._crossed_board.add(track_id)
                 log.info("Track #%s: BOARD line crossed (탑승). Total BOARD=%d", track_id, self.count_board)
@@ -103,23 +103,23 @@ class LineCrossingCounter:
 
     def cleanup_lost_tracks(self, active_ids: set[str]):
         """더 이상 추적되지 않는 Track ID 정리."""
-        lost = set(self._prev_y.keys()) - active_ids
+        lost = set(self._prev_x.keys()) - active_ids
         for tid in lost:
-            del self._prev_y[tid]
+            del self._prev_x[tid]
 
     def draw(self, frame: np.ndarray) -> np.ndarray:
-        """프레임에 라인과 카운트 정보를 오버레이."""
+        """프레임에 세로 라인과 카운트 정보를 오버레이."""
         h, w = frame.shape[:2]
 
-        # IN 라인 (파란색)
-        cv2.line(frame, (0, self.in_line_y), (w, self.in_line_y), (255, 0, 0), 2)
-        cv2.putText(frame, f"IN LINE (entered: {self.count_in})",
-                    (10, self.in_line_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+        # IN 라인 (파란색, 좌측 세로 — 좌→우 통과 시 진입)
+        cv2.line(frame, (self.in_line_x, 0), (self.in_line_x, h), (255, 0, 0), 2)
+        cv2.putText(frame, f"IN ({self.count_in})",
+                    (self.in_line_x + 8, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-        # BOARD 라인 (초록색)
-        cv2.line(frame, (0, self.board_line_y), (w, self.board_line_y), (0, 255, 0), 2)
-        cv2.putText(frame, f"BOARD LINE (boarded: {self.count_board})",
-                    (10, self.board_line_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # BOARD 라인 (초록색, 우측 세로 — 좌→우 통과 시 탑승)
+        cv2.line(frame, (self.board_line_x, 0), (self.board_line_x, h), (0, 255, 0), 2)
+        cv2.putText(frame, f"BOARD ({self.count_board})",
+                    (self.board_line_x + 8, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # 현재 대기 인원 (화면 상단)
         cv2.putText(frame, f"Waiting: {self.current_waiting}",
@@ -209,7 +209,7 @@ def run_counter(args):
 
     # 4) Line Crossing 카운터
     lc = LineCrossingCounter(
-        frame_height=actual_h,
+        frame_width=actual_w,
         in_ratio=args.in_line,
         board_ratio=args.board_line,
     )
@@ -261,9 +261,8 @@ def run_counter(args):
                 active_ids.add(track_id)
                 ltwh = track.to_ltwh()
                 cx = ltwh[0] + ltwh[2] / 2
-                cy = ltwh[1] + ltwh[3] / 2
 
-                lc.update(track_id, cy)
+                lc.update(track_id, cx)
 
                 # 디버그: 바운딩 박스 + Track ID 표시
                 if args.debug:
@@ -327,11 +326,11 @@ def parse_args():
     p.add_argument("--classes", default="0",
                    help="탐지할 클래스 ID 목록, 쉼표로 구분 (default: 0)")
 
-    # Line Crossing
-    p.add_argument("--in-line", type=float, default=0.7,
-                   help="IN 라인 y 비율 (0=상단, 1=하단, default: 0.7)")
-    p.add_argument("--board-line", type=float, default=0.3,
-                   help="BOARD 라인 y 비율 (default: 0.3)")
+    # Line Crossing (세로 라인)
+    p.add_argument("--in-line", type=float, default=0.3,
+                   help="IN 라인 x 비율 (0=좌, 1=우, default: 0.3 — 좌측)")
+    p.add_argument("--board-line", type=float, default=0.7,
+                   help="BOARD 라인 x 비율 (default: 0.7 — 우측)")
 
     # 서버
     p.add_argument("--server", default="http://localhost:5000",
