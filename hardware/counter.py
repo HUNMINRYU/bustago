@@ -165,6 +165,11 @@ class APIReporter:
 
         self._last_post = now
 
+    def post_now(self, counter: LineCrossingCounter):
+        """interval 무시하고 즉시 POST (종료 시 최종 카운트 동기화용)."""
+        self._last_post = 0.0
+        self.maybe_post(counter)
+
 
 # ---------------------------------------------------------------------------
 # Main Pipeline
@@ -225,15 +230,25 @@ def run_counter(args):
     fps_counter = 0
     fps_start = time.time()
     display_fps = 0.0
+    cam_fail_count = 0       # 연속 프레임 읽기 실패 횟수
+    CAM_FAIL_LIMIT = 50      # 약 5초(50×0.1s) 연속 실패 시 카메라 재연결 시도
 
     log.info("Starting counting loop. Press 'q' to quit (debug mode).")
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
-                log.warning("Frame read failed. Retrying...")
+                cam_fail_count += 1
+                if cam_fail_count >= CAM_FAIL_LIMIT:
+                    log.error("Camera lost (%d연속 실패). 재연결 시도...", cam_fail_count)
+                    cap.release()
+                    cap = cv2.VideoCapture(cam_id)
+                    cam_fail_count = 0
+                else:
+                    log.warning("Frame read failed. Retrying...")
                 time.sleep(0.1)
                 continue
+            cam_fail_count = 0
 
             # YOLOv11 추론 (기본값: COCO person class 0)
             results = model(frame, classes=target_classes, verbose=False, conf=args.conf)
@@ -300,8 +315,8 @@ def run_counter(args):
         cap.release()
         if args.debug:
             cv2.destroyAllWindows()
-        # 최종 POST
-        reporter.maybe_post(lc)
+        # 최종 POST (interval 무시하고 강제 전송)
+        reporter.post_now(lc)
         log.info("Final count — IN: %d, BOARD: %d, Waiting: %d",
                  lc.count_in, lc.count_board, lc.current_waiting)
 

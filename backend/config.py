@@ -19,7 +19,7 @@ load_dotenv()
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # Flask
-DEBUG = os.getenv("FLASK_DEBUG", "1") == "1"
+DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
 PORT = int(os.getenv("FLASK_PORT", "5000"))
 
 # MySQL

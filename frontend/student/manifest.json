@@ -1,7 +1,7 @@
 {
   "name": "BUSTAGO - 버스 혼잡도 예측",
   "short_name": "BUSTAGO",
-  "description": "서울시 버스 정류장 혼잡도 예측 서비스",
+  "description": "광주대학교 버스 정류장 혼잡도 예측 서비스",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#F5F5F5",

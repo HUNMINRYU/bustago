@@ -5,12 +5,13 @@
 #   crontab -e
 #   */5 * * * * /home/bustago/hardware/watchdog_jetson.sh >> /var/log/bustago-watchdog.log 2>&1
 #
-# 설치 전 수정 필요: SERVER_IP를 실제 서버 IP로 변경
+# 구성: 백엔드를 Jetson 자체에서 구동 → SERVER_IP=localhost:5000
+#       백엔드를 별도 머신에서 구동하면 SERVER_IP를 해당 IP:포트로 변경
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TS=$(date '+%Y-%m-%d %H:%M:%S')
 
-SERVER_IP="SERVER_IP"          # TODO: 실제 서버 IP로 변경 (예: 192.168.0.100)
+SERVER_IP="localhost:5000"     # 백엔드를 Jetson 자체에서 구동하는 구성
 STATION_ID="INS01"
 MODEL="yolo11n.engine"
 LOG="/var/log/bustago-counter.log"

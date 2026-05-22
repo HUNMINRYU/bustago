@@ -8,7 +8,7 @@
 TS=$(date '+%Y-%m-%d %H:%M:%S')
 SERVICE="bustago-kiosk.service"
 
-if pgrep -x "chromium-browse" > /dev/null 2>&1 || pgrep -x "chromium" > /dev/null 2>&1; then
+if pgrep -x "chromium-browser" > /dev/null 2>&1 || pgrep -x "chromium" > /dev/null 2>&1; then
     echo "${TS} [PI] Kiosk 정상 동작 중"
 else
     echo "${TS} [PI] Kiosk 미실행 — 재시작"

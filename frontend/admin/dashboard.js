@@ -13,10 +13,8 @@ var STATIONS = {};
 // Demo fallback data
 var DEMO_HOURLY = [0, 0, 0, 0, 0, 0, 1, 2, 3, 2, 1, 1, 1, 1, 1, 1, 2, 3, 3, 2, 1, 1, 0, 0];
 var DEMO_STATS = [
-  { id: '02142', name: '명동.롯데영프라자', avgCongestion: 1.6, fullCount: 5, peakHour: '18시', currentLevel: 1 },
-  { id: '22011', name: '지하철2호선강남역', avgCongestion: 2.1, fullCount: 8, peakHour: '08시', currentLevel: 2 },
-  { id: '22009', name: '신분당선강남역', avgCongestion: 1.8, fullCount: 4, peakHour: '08시', currentLevel: 1 },
-  { id: '22012', name: '지하철2호선강남역(반대편)', avgCongestion: 1.3, fullCount: 2, peakHour: '18시', currentLevel: 0 }
+  { id: 'GATE01', name: '광주대 정문 (시내버스)', avgCongestion: 2.1, fullCount: 7, peakHour: '08시', currentLevel: 2 },
+  { id: 'INS01', name: '광주대 인성관 (셔틀)', avgCongestion: 1.6, fullCount: 4, peakHour: '17시', currentLevel: 1 }
 ];
 
 var congestionChart = null;
@@ -379,7 +377,7 @@ function initMap() {
     return;
   }
 
-  leafletMap = L.map('station-map').setView([37.53, 127.0], 12);
+  leafletMap = L.map('station-map').setView([35.1378, 126.8942], 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(leafletMap);

@@ -80,8 +80,8 @@ def run_counter_on_video(video_path: Path, model_path: Path,
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video: {video_path}")
 
-    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    counter = LineCrossingCounter(frame_height=h, in_ratio=in_ratio, board_ratio=board_ratio)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    counter = LineCrossingCounter(frame_width=w, in_ratio=in_ratio, board_ratio=board_ratio)
     tracker = DeepSort(max_age=30, n_init=3, max_cosine_distance=0.3)
     yolo = YOLO(str(model_path))
 
@@ -104,8 +104,8 @@ def run_counter_on_video(video_path: Path, model_path: Path,
                 if not tr.is_confirmed():
                     continue
                 l, t, r, b = tr.to_ltrb()
-                cy = (t + b) / 2
-                counter.update(int(tr.track_id), cy)
+                cx = (l + r) / 2
+                counter.update(tr.track_id, cx)
     finally:
         cap.release()
 
