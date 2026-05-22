@@ -63,13 +63,13 @@ class LineCrossingCounter:
         self.count_in = 0       # IN 라인 통과 (정류장 진입)
         self.count_board = 0    # BOARD 라인 통과 (버스 탑승)
 
-        # Track ID별 이전 프레임 중심 y 좌표
-        self._prev_y: dict[int, float] = {}
+        # Track ID별 이전 프레임 중심 y 좌표 (DeepSORT track_id는 str)
+        self._prev_y: dict[str, float] = {}
         # Track ID별 라인 통과 여부 (중복 카운팅 방지)
-        self._crossed_in: set[int] = set()
-        self._crossed_board: set[int] = set()
+        self._crossed_in: set[str] = set()
+        self._crossed_board: set[str] = set()
 
-    def update(self, track_id: int, cy: float):
+    def update(self, track_id: str, cy: float):
         """Track ID의 현재 중심 y 좌표로 라인 통과 여부를 판정.
 
         Args:
@@ -87,21 +87,21 @@ class LineCrossingCounter:
             if prev < self.in_line_y <= cy:
                 self.count_in += 1
                 self._crossed_in.add(track_id)
-                log.info("Track #%d: IN line crossed (진입). Total IN=%d", track_id, self.count_in)
+                log.info("Track #%s: IN line crossed (진입). Total IN=%d", track_id, self.count_in)
 
         # BOARD 라인: 아래→위 통과 (버스 탑승)
         if track_id not in self._crossed_board:
             if prev > self.board_line_y >= cy:
                 self.count_board += 1
                 self._crossed_board.add(track_id)
-                log.info("Track #%d: BOARD line crossed (탑승). Total BOARD=%d", track_id, self.count_board)
+                log.info("Track #%s: BOARD line crossed (탑승). Total BOARD=%d", track_id, self.count_board)
 
     @property
     def current_waiting(self) -> int:
         """현재 대기 인원 추정 = 진입 - 탑승 (최소 0)."""
         return max(0, self.count_in - self.count_board)
 
-    def cleanup_lost_tracks(self, active_ids: set[int]):
+    def cleanup_lost_tracks(self, active_ids: set[str]):
         """더 이상 추적되지 않는 Track ID 정리."""
         lost = set(self._prev_y.keys()) - active_ids
         for tid in lost:
