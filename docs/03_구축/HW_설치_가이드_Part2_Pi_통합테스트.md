@@ -9,13 +9,29 @@
 
 ## ⚠️ 2026-05-22 현황 (D-13)
 
-- **Pi 아직 미연결.** 6/4 경진대회까지 13일.
-- **백엔드 구성 변경**: 5/22 결정으로 백엔드를 **Jetson 자체에서 구동**한다 (별도 서버 X).
-  → 본 가이드의 `SERVER_IP`는 **Jetson IP**(현재 `172.30.1.75`)이다.
-  → 단, Pi와 Jetson은 **같은 WiFi**에 있어야 한다.
-- **Pi 풀 셋업 일정**: D-12~D-10 (3일) — 본 가이드 1~6단계 순차 진행.
-- **Pi 없이 시연 가능 여부**: 노트북 브라우저로 Student PWA를 띄우면 동일하게 동작.
-  Pi는 "정류장 키오스크" 컨셉을 물리적으로 보여주는 역할일 뿐, 데이터 흐름에는 들어가지 않는다 (§9 Pi 미연결 폴백 참조).
+- **Pi 셋업 진행됨 (수동 실행 동작 확인).** 6/4 경진대회까지 13일.
+- **백엔드 구성**: 5/22 결정으로 백엔드를 **Jetson 자체에서 구동**한다 (별도 서버 X).
+  → 본 가이드의 `SERVER_IP`는 **Jetson IP**(현재 `172.30.1.75`, 포트 `5000`)이다.
+  → Pi와 Jetson은 **같은 WiFi**에 있어야 한다.
+- **Pi 없이 시연 가능 여부**: 노트북 브라우저로 Student PWA를 띄우면 동일 동작.
+  Pi는 "정류장 키오스크" 컨셉을 물리적으로 보여주는 역할이지 데이터 흐름엔 안 들어감(§9).
+
+### 실 셋업 환경 (5/22 진행분 — 가이드 기본값과 다른 부분)
+
+| 항목 | 가이드 기본값 | **실제 셋업값** (이게 진실) |
+|---|---|---|
+| 호스트명 | `bustago-kiosk` | `amoo-rp` |
+| 사용자명 | `pi` | `amoo_rp` |
+| 홈 디렉터리 | `/home/pi` | `/home/amoo_rp` |
+| OS | Bookworm 가정 | **Debian 13 Trixie** (Bookworm 이후) |
+| 브라우저 패키지 | `chromium-browser` (구) | **`chromium`** |
+| 브라우저 경로 | `/usr/bin/chromium-browser` | **`/usr/bin/chromium`** |
+| 저장소 클론 경로 | `/home/pi/bustago` | **`/home/amoo_rp/bustago`** |
+| 저장소 브랜치 | (기본) main | **`develop`** (5/22 수정사항 포함) |
+| Jetson 백엔드 URL | `http://SERVER_IP/...` | **`http://172.30.1.75:5000/...`** |
+| 추가 설치 패키지 | — | **`fonts-noto-color-emoji`** (이모지 폰트) |
+
+> 아래 모든 명령은 위 실제 셋업값 기준으로 정정됨. 다른 팀이 다른 환경으로 셋업하면 위 표를 참고해 치환할 것.
 
 ---
 
@@ -82,7 +98,7 @@ sudo raspi-config
 sudo nano /etc/systemd/system/bustago-kiosk.service
 ```
 
-아래 내용 입력. **SERVER_IP는 Jetson IP** (현재 `172.30.1.75`, `ip addr show wlan0`로 확인):
+**아래는 5/22 셋업한 실제 환경(`amoo_rp`)에 맞춘 서비스 파일.** 다른 환경이면 §0 표대로 치환.
 
 ```ini
 [Unit]
@@ -91,9 +107,9 @@ After=network.target graphical.target
 
 [Service]
 Type=simple
-User=pi
+User=amoo_rp
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=XAUTHORITY=/home/amoo_rp/.Xauthority
 ExecStartPre=/bin/sleep 5
 ExecStart=/usr/bin/chromium \
     --kiosk \
@@ -102,6 +118,8 @@ ExecStart=/usr/bin/chromium \
     --no-first-run \
     --disable-restore-session-state \
     --disable-session-crashed-bubble \
+    --disable-cache \
+    --disk-cache-dir=/tmp/chromium-kiosk \
     http://172.30.1.75:5000/student/index.html
 Restart=always
 RestartSec=5
@@ -109,6 +127,9 @@ RestartSec=5
 [Install]
 WantedBy=graphical.target
 ```
+
+> `--disable-cache`는 5/22 PWA 코드 변경(광주 정류장 우선·반응형) 후 구버전 캐시
+> 묻어나오는 것 방지. 운영 안정화되면 빼도 됨.
 
 > Jetson IP가 바뀌면 이 파일의 마지막 URL과 `watchdog_pi.sh` 안의 `SERVICE` 환경도 함께 갱신.
 > Jetson 측 백엔드는 **`host="0.0.0.0"`**로 떠야 외부 접근 가능 (Flask `app.run` 또는 `python3 -m backend.app` 기본값으로 OK).
