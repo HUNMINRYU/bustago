@@ -50,11 +50,23 @@ ssh pi@192.168.x.x
 # 패키지 업데이트
 sudo apt update && sudo apt upgrade -y
 
-# 필수 패키지 설치
-sudo apt install -y chromium-browser     unclutter     xdotool     python3-pip
+# 필수 패키지 설치 (Bookworm 기준 — chromium-browser → chromium)
+sudo apt install -y \
+    chromium \
+    unclutter \
+    xdotool \
+    xserver-xorg \
+    x11-xserver-utils \
+    xinit \
+    openbox \
+    fonts-noto-cjk \
+    git \
+    python3-pip
 
-# 한국어 폰트 설치 (PWA 텍스트 표시용)
-sudo apt install -y fonts-noto-cjk
+# OS 버전 확인 (Bookworm/Bullseye 구분)
+cat /etc/os-release | grep VERSION_CODENAME
+# → bookworm: chromium (위 명령 그대로)
+# → bullseye 이전: 'chromium' 대신 'chromium-browser'로 교체 필요
 
 # 자동 로그인 설정
 sudo raspi-config
@@ -83,7 +95,7 @@ User=pi
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium-browser \
+ExecStart=/usr/bin/chromium \
     --kiosk \
     --noerrdialogs \
     --disable-infobars \
@@ -100,6 +112,7 @@ WantedBy=graphical.target
 
 > Jetson IP가 바뀌면 이 파일의 마지막 URL과 `watchdog_pi.sh` 안의 `SERVICE` 환경도 함께 갱신.
 > Jetson 측 백엔드는 **`host="0.0.0.0"`**로 떠야 외부 접근 가능 (Flask `app.run` 또는 `python3 -m backend.app` 기본값으로 OK).
+> **Bookworm 이상은 `/usr/bin/chromium`, Bullseye 이하는 `/usr/bin/chromium-browser`.** `which chromium`으로 사전 확인.
 
 ### 3.2 서비스 등록 및 시작
 ```bash
