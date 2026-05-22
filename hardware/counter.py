@@ -50,12 +50,12 @@ log = logging.getLogger("counter")
 class LineCrossingCounter:
     """세로 가상 라인 2개(IN, BOARD)를 기준으로 Track ID별 통과를 판정."""
 
-    def __init__(self, frame_width: int, in_ratio: float = 0.3, board_ratio: float = 0.7):
+    def __init__(self, frame_width: int, in_ratio: float = 0.7, board_ratio: float = 0.3):
         """
         Args:
             frame_width: 프레임 가로 해상도
-            in_ratio: IN 라인의 x 위치 비율 (0=좌, 1=우). 정류장 진입 라인(좌측).
-            board_ratio: BOARD 라인의 x 위치 비율. 버스 탑승 라인(우측).
+            in_ratio: IN 라인의 x 위치 비율 (0=좌, 1=우). 정류장 진입 라인(우측).
+            board_ratio: BOARD 라인의 x 위치 비율. 버스 탑승 라인(좌측).
         """
         self.in_line_x = int(frame_width * in_ratio)
         self.board_line_x = int(frame_width * board_ratio)
@@ -82,16 +82,16 @@ class LineCrossingCounter:
         if prev is None:
             return
 
-        # IN 라인: 좌→우 통과 (정류장 진입)
+        # IN 라인: 우→좌 통과 (정류장 진입)
         if track_id not in self._crossed_in:
-            if prev < self.in_line_x <= cx:
+            if prev > self.in_line_x >= cx:
                 self.count_in += 1
                 self._crossed_in.add(track_id)
                 log.info("Track #%s: IN line crossed (진입). Total IN=%d", track_id, self.count_in)
 
-        # BOARD 라인: 좌→우 통과 (버스 탑승)
+        # BOARD 라인: 우→좌 통과 (버스 탑승)
         if track_id not in self._crossed_board:
-            if prev < self.board_line_x <= cx:
+            if prev > self.board_line_x >= cx:
                 self.count_board += 1
                 self._crossed_board.add(track_id)
                 log.info("Track #%s: BOARD line crossed (탑승). Total BOARD=%d", track_id, self.count_board)
@@ -111,12 +111,12 @@ class LineCrossingCounter:
         """프레임에 세로 라인과 카운트 정보를 오버레이."""
         h, w = frame.shape[:2]
 
-        # IN 라인 (파란색, 좌측 세로 — 좌→우 통과 시 진입)
+        # IN 라인 (파란색, 우측 세로 — 우→좌 통과 시 진입)
         cv2.line(frame, (self.in_line_x, 0), (self.in_line_x, h), (255, 0, 0), 2)
         cv2.putText(frame, f"IN ({self.count_in})",
                     (self.in_line_x + 8, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-        # BOARD 라인 (초록색, 우측 세로 — 좌→우 통과 시 탑승)
+        # BOARD 라인 (초록색, 좌측 세로 — 우→좌 통과 시 탑승)
         cv2.line(frame, (self.board_line_x, 0), (self.board_line_x, h), (0, 255, 0), 2)
         cv2.putText(frame, f"BOARD ({self.count_board})",
                     (self.board_line_x + 8, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -327,10 +327,10 @@ def parse_args():
                    help="탐지할 클래스 ID 목록, 쉼표로 구분 (default: 0)")
 
     # Line Crossing (세로 라인)
-    p.add_argument("--in-line", type=float, default=0.3,
-                   help="IN 라인 x 비율 (0=좌, 1=우, default: 0.3 — 좌측)")
-    p.add_argument("--board-line", type=float, default=0.7,
-                   help="BOARD 라인 x 비율 (default: 0.7 — 우측)")
+    p.add_argument("--in-line", type=float, default=0.7,
+                   help="IN 라인 x 비율 (0=좌, 1=우, default: 0.7 — 우측)")
+    p.add_argument("--board-line", type=float, default=0.3,
+                   help="BOARD 라인 x 비율 (default: 0.3 — 좌측)")
 
     # 서버
     p.add_argument("--server", default="http://localhost:5000",
