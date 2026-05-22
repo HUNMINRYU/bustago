@@ -1,6 +1,6 @@
 """
 BUSTAGO - 혼잡도 예측 인터페이스
-학습된 모델(LightGBM 우선, 없으면 RandomForest)을 로드하여 혼잡도를 예측한다.
+학습된 RandomForest 모델(rf_model.pkl)을 로드하여 혼잡도를 예측한다.
 
 Backend에서 호출하는 함수:
     predict_congestion(features: dict) -> dict

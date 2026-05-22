@@ -43,8 +43,8 @@
 
 ### AI / ML
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![LightGBM](https://img.shields.io/badge/LightGBM-02569B?style=flat)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikitlearn&logoColor=white)
+![RandomForest](https://img.shields.io/badge/RandomForest-6DB33F?style=flat)
 ![YOLOv11](https://img.shields.io/badge/YOLOv11-00FFFF?style=flat&logo=ultralytics&logoColor=black)
 ![DeepSORT](https://img.shields.io/badge/DeepSORT-FF6F61?style=flat)
 
@@ -183,7 +183,7 @@ python models/train_rf.py
 # LightGBM은 archive/ml_lightgbm/에 보존 (2026-05-17 단순화 묶음 B로 이관). 광주 자체
 # 데이터 확보 후 비교 학습이 필요해질 때 복원 — 가이드: archive/ml_lightgbm/README.md
 ```
-> 현재 운영 모델은 `rf_model.pkl` (학습 완료, 225KB). `lgbm_model.pkl`이 존재하면 `predict.py`가 자동으로 LGBM을 우선 사용합니다.
+> 현재 운영 모델은 `rf_model.pkl` (RandomForest, 4 feature, 약 2.9MB). `predict.py`는 RF만 로드합니다 — LightGBM 듀얼 트랙은 2026-05-17 단순화로 `archive/ml_lightgbm/`에 이관됨.
 
 ### 5. AI 카운팅 (Jetson / PC 웹캠)
 ```bash
@@ -204,5 +204,5 @@ python counter.py --camera 0 --model yolo11n.engine --server http://SERVER_IP/ap
 | 마일스톤 | 일정 |
 |----------|------|
 | 1차 발표/시연 | 5.21 |
-| 교내 경진대회 | 5.28 |
+| 경진대회 | 6.4 |
 | 최종 결과보고서 | 6.4 |
