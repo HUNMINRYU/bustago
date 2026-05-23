@@ -1,0 +1,114 @@
+@startuml BUSTAGO_Architecture
+'======================================================================
+' BUSTAGO 4계층 아키텍처 다이어그램 (판넬 이미지 #01)
+'
+' 출처: docs/02_설계/아키텍처정의서.md v1.1 (2026-05-22 갱신)
+' 기준 리비전: 5/17 단순화(LightGBM→RF, 7→4 feature, weather_cache 제거) 반영
+'
+' 렌더링:
+'   - 온라인: https://www.plantuml.com/plantuml/uml/ (puml 코드 붙여넣기)
+'   - VSCode: PlantUML 확장 (PNG 즉시 export)
+'   - CLI: java -jar plantuml.jar 01_아키텍처_다이어그램.puml
+'
+' 출력 해상도 권장: PNG 2x 또는 3x (판넬 인쇄용 300dpi 대응)
+'======================================================================
+
+!define LAYER_BG #F5F5F5
+!define LAYER_BORDER #1976D2
+!define BLOCK_BG #FFFFFF
+!define BLOCK_BORDER #757575
+!define ACCENT #4CAF50
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Noto Sans CJK KR"
+skinparam defaultFontSize 13
+skinparam ArrowColor #424242
+skinparam ArrowThickness 1.5
+skinparam shadowing false
+skinparam roundCorner 8
+
+skinparam rectangle {
+  BackgroundColor BLOCK_BG
+  BorderColor BLOCK_BORDER
+  FontColor #212121
+}
+
+skinparam package {
+  BackgroundColor LAYER_BG
+  BorderColor LAYER_BORDER
+  FontColor #1976D2
+  FontStyle bold
+}
+
+title <b>BUSTAGO 4계층 아키텍처</b>\n<size:11>광주대학교 정류장 혼잡도 예측 + AI 카운팅 시스템</size>
+
+' ======================= Layer 4 — Frontend =======================
+package "Layer 4 · Frontend (Nginx 정적)" as L4 {
+  rectangle "Student PWA\n<size:11>Service Worker · 정류장 선택\n혼잡도 4단계 · 노선 추천\n광주 BIS 실시간 도착</size>" as PWA #E3F2FD
+  rectangle "Admin Dashboard\n<size:11>Leaflet 지도 · 실시간 카운팅 패널\nChart.js 시간대별 통계\nJetson 연결 상태 표시</size>" as ADMIN #E3F2FD
+}
+
+' ======================= Layer 3 — Backend =======================
+package "Layer 3 · Backend (Flask)" as L3 {
+  rectangle "REST API 12 경로 (Blueprint 4개)\n<size:11>congestion / crowd / stations / stats\n· /api/predict · /api/route-recommend\n· /api/crowd-count (POST 수집·GET 조회)\n· /api/stations · /api/stats · /api/arrive\nflask-limiter Rate-Limit · CORS</size>" as API
+}
+
+' ======================= Layer 2 — ML =======================
+package "Layer 2 · ML" as L2 {
+  rectangle "<b>RandomForest</b>\n<size:11>rf_model.pkl (2.9MB)\nn_estimators=100, max_depth=10\n<b>4 feature</b>\n(hour, prev_boarding,\n prev_alighting, route_count)\n<b>CV 5-fold 0.9960 ±0.0029</b></size>" as RF #E8F5E9
+  rectangle "Fallback Chain\n<size:11>RF → rule_based → DUMMY\n(sklearn 의존 0)</size>" as FB #FFF9C4
+}
+
+' ======================= Layer 1 — DB =======================
+package "Layer 1 · DB (MySQL 8 / SQLite 폴백)" as L1 {
+  rectangle "stations\n<size:11>서울5 + 광주5</size>" as T1
+  rectangle "predictions\n<size:11>예측 결과 로그</size>" as T2
+  rectangle "crowd_counts\n<size:11>Jetson POST 카운트</size>" as T3
+  rectangle "routes\n<size:11>대체 노선 추천</size>" as T4
+}
+
+' ======================= Layer 0 — Hardware =======================
+package "Layer 0 · Hardware (광주대 정류장 현장)" as L0 {
+  rectangle "<b>Jetson Orin Nano</b>\n<size:11>+ USB 카메라 1대\nYOLOv11n + DeepSORT + Line Crossing\n<b>TensorRT FP16 38.5 FPS</b> (YOLO 단독)\n풀 파이프라인 ~14 FPS\ncounter.py</size>" as JET #FFE0B2
+  rectangle "Raspberry Pi 4\n<size:11>+ 7\" 터치 LCD\nChromium Kiosk → Student PWA\n전체화면 자동 실행</size>" as PI #FFE0B2
+}
+
+' ======================= 외부 의존 =======================
+rectangle "광주 BIS API\n<size:11>실시간 도착·노선\n(gj_bis)</size>" as BIS #ECEFF1
+
+' ======================= Flow Arrows =======================
+PWA -down-> API : fetch /api/*
+ADMIN -down-> API : fetch /api/*\n10초 polling
+API -down-> RF : predict(features)
+RF -[#9E9E9E,dashed]-> FB : 실패 시\n자동 폴백
+API -down-> L1 : SQL\n(파라미터 바인딩)
+API -[#FF9800]-> BIS : /api/arrive 프록시
+BIS -[#FF9800,dashed]-> API
+JET -up-> API : POST /api/crowd-count\n10초 주기
+PI -up-> ADMIN : (실은 PWA 표시)\nHTTP GET
+PI -.up.-> PWA : Chromium kiosk\n로드
+
+' ======================= Watchdog =======================
+note bottom of L0
+  <b>Watchdog (crontab)</b>
+  watchdog_jetson.sh — 5분마다 counter.py 감시·재시작
+  watchdog_pi.sh — 2분마다 chromium kiosk 감시·재시작
+end note
+
+' ======================= Layer 배치 =======================
+L4 -[hidden]down- L3
+L3 -[hidden]down- L2
+L2 -[hidden]down- L1
+L1 -[hidden]down- L0
+
+' ======================= 범례 =======================
+legend right
+  <b>2026-05-22 v1.1 갱신</b>
+  · weather_cache 테이블 제거 (4 테이블)
+  · LightGBM → RandomForest 단순화
+  · 7 → 4 feature (weather/temperature 제거)
+  · TensorRT FP16 벤치마크 (2026-05-23)
+  · Pi 키오스크 셋업 검증 (2026-05-22)
+end legend
+
+@enduml

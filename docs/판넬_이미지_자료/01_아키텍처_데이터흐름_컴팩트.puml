@@ -1,0 +1,71 @@
+@startuml BUSTAGO_DataFlow_Compact
+'======================================================================
+' BUSTAGO 데이터 흐름 다이어그램 — 컴팩트 버전
+'
+' 4계층 박스 다이어그램의 대안. "어떻게 동작하는가"를 더 명확히 보여줌.
+' 판넬 #01의 대체안 또는 보조 다이어그램으로 사용.
+'======================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Noto Sans CJK KR"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam ArrowColor #424242
+skinparam ArrowThickness 1.5
+
+skinparam actor {
+  BackgroundColor #FFF9C4
+  BorderColor #F57F17
+}
+
+skinparam usecase {
+  BackgroundColor #E3F2FD
+  BorderColor #1976D2
+  FontColor #212121
+}
+
+skinparam database {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+}
+
+title <b>BUSTAGO 데이터 흐름</b>\n<size:11>"카메라가 사람을 세고 → AI가 혼잡도를 예측 → 학생에게 추천"</size>
+
+actor "학생\n(스마트폰/Pi 키오스크)" as USER
+actor "광주대 정류장\n통행자" as PEDESTRIAN
+
+usecase "📱 Student PWA\n(혼잡도 4단계·노선 추천)" as PWA
+usecase "🖥️ Admin Dashboard\n(실시간 카운팅·통계)" as ADMIN
+usecase "🌐 Flask Backend\n(REST API 12 경로)" as API
+usecase "🤖 RandomForest\n(4 feature · CV 0.9960)" as ML
+database "💾 MySQL/SQLite\n(4 테이블)" as DB
+
+usecase "📷 Jetson + Camera\nYOLO11n + DeepSORT\n(38.5 FPS YOLO 단독)" as CAM
+usecase "🚌 광주 BIS API\n(실시간 도착)" as BIS
+
+PEDESTRIAN -right-> CAM : 카메라 시야 통과
+CAM -down-> API : POST /api/crowd-count\n10초 주기
+API -down-> DB : crowd_counts 저장
+API -right-> ML : predict(features)
+ML -[#4CAF50,dashed]-> API : 혼잡도 4단계
+API -up-> PWA : /api/predict 응답
+API -up-> ADMIN : /api/crowd-count 응답
+API -left-> BIS : /api/arrive 프록시
+BIS -[#FF9800,dashed]-> API : 실시간 도착정보
+PWA -up-> USER : 정류장 선택 → 혼잡도 표시
+ADMIN -up-> USER : 운영자 모니터링
+
+note bottom of ML
+  <b>Fallback Chain</b>
+  RF → rule_based → DUMMY
+  (모델 실패해도 응답 보장)
+end note
+
+note bottom of CAM
+  <b>TensorRT FP16</b> 가속
+  PyTorch 8.09 → TensorRT 38.5 FPS
+  <b>4.8배</b>, mAP 손실 -1.4%
+end note
+
+@enduml
