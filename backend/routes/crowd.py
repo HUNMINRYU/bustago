@@ -182,3 +182,30 @@ def post_crowd_count_event():
         "current_waiting": new_waiting,
         "timestamp": datetime.now().isoformat(),
     })
+
+
+@crowd_bp.route("/api/crowd-count/reset", methods=["POST"])
+@limiter.limit("5 per minute")
+def post_crowd_count_reset():
+    """시연 사이 DEMO01 카운트 초기화. INS01 등 실제 데이터는 거부."""
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, description="JSON body is required")
+
+    station_id = data.get("station_id")
+    _validate_demo_station(station_id)
+
+    # rowcount 산출 — execute가 rowcount 반환 안 하므로 사전 COUNT 사용
+    before = fetchone(
+        "SELECT COUNT(*) AS c FROM crowd_counts WHERE station_id = ?",
+        (station_id,),
+    )
+    deleted_rows = before["c"] if before else 0
+
+    execute("DELETE FROM crowd_counts WHERE station_id = ?", (station_id,))
+
+    return jsonify({
+        "status": "ok",
+        "deleted_rows": deleted_rows,
+        "timestamp": datetime.now().isoformat(),
+    })

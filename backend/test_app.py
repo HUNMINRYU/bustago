@@ -416,3 +416,41 @@ def test_event_rejects_non_demo_station(client):
         "station_id": "INS01", "event_type": "in"
     })
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Demo 엔드포인트 — POST /api/crowd-count/reset
+# ---------------------------------------------------------------------------
+
+def test_reset_clears_demo_rows(client):
+    """이벤트 2건 주입 후 reset → row 0건."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "in"})
+    client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "board"})
+
+    resp = client.post("/api/crowd-count/reset", json={"station_id": "DEMO01"})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "ok"
+    assert body["deleted_rows"] >= 2
+
+    # 후속 GET → 404
+    get_resp = client.get("/api/crowd-count?station_id=DEMO01")
+    assert get_resp.status_code == 404
+
+
+def test_reset_rejects_non_demo_station(client):
+    """INS01 reset 호출 → 400 (실제 데이터 보호)."""
+    resp = client.post("/api/crowd-count/reset", json={"station_id": "INS01"})
+    assert resp.status_code == 400
+
+
+def test_reset_on_empty_returns_zero(client):
+    """이미 빈 DEMO01에 reset → deleted_rows=0, status ok."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    resp = client.post("/api/crowd-count/reset", json={"station_id": "DEMO01"})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["deleted_rows"] == 0
