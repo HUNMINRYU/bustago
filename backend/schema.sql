@@ -54,6 +54,10 @@ INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busst
 ('GJ3229', '광주대 (3229)', 35.1378000, 126.8954000, 80),
 ('GJ3228', '광주대입구 (3228)', 35.1370000, 126.8940000, 3219);
 
+-- 시연용 정류장 (광주대 좌표와 동일 — 지도 동일점에 찍힘)
+INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
+('DEMO01', '시연용 정류장 (광주대)', 35.1378, 126.8942);
+
 -- 노선 테이블 (route-recommend API용)
 CREATE TABLE IF NOT EXISTS routes (
     id INTEGER PRIMARY KEY,

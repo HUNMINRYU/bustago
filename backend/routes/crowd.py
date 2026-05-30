@@ -32,6 +32,16 @@ def _validate_non_negative_int(value, name):
         abort(400, description=f"{name} must be a non-negative integer")
 
 
+DEMO_STATION_ID = "DEMO01"
+
+
+def _validate_demo_station(station_id):
+    """시연 전용 엔드포인트 진입 전 station_id 검사. DEMO01만 허용."""
+    _validate_station_id(station_id)
+    if station_id != DEMO_STATION_ID:
+        abort(400, description=f"This endpoint only accepts station_id={DEMO_STATION_ID}")
+
+
 @crowd_bp.route("/api/crowd-count", methods=["POST"])
 @limiter.limit("60 per minute")
 def post_crowd_count():
