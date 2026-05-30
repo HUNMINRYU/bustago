@@ -356,3 +356,63 @@ def test_stations_response_has_gj_busstop_id_field(client):
     resp = client.get("/api/stations")
     assert resp.status_code == 200
     assert all("gj_busstop_id" in station for station in resp.json["data"])
+
+
+# ---------------------------------------------------------------------------
+# Demo 엔드포인트 — POST /api/crowd-count/event
+# ---------------------------------------------------------------------------
+
+def test_event_in_from_empty(client):
+    """빈 상태에서 IN +1 → count_in=1, current_waiting=1."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    resp = client.post("/api/crowd-count/event", json={
+        "station_id": "DEMO01", "event_type": "in"
+    })
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "ok"
+    assert body["count_in"] == 1
+    assert body["count_board"] == 0
+    assert body["current_waiting"] == 1
+
+
+def test_event_board_after_in(client):
+    """IN +1 후 BOARD +1 → count_in=1, count_board=1, current_waiting=0."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "in"})
+    resp = client.post("/api/crowd-count/event", json={
+        "station_id": "DEMO01", "event_type": "board"
+    })
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["count_in"] == 1
+    assert body["count_board"] == 1
+    assert body["current_waiting"] == 0
+
+
+def test_event_board_from_empty_rejected(client):
+    """빈 상태에서 BOARD → 400."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    resp = client.post("/api/crowd-count/event", json={
+        "station_id": "DEMO01", "event_type": "board"
+    })
+    assert resp.status_code == 400
+
+
+def test_event_invalid_type_rejected(client):
+    """event_type 화이트리스트 위반 → 400."""
+    resp = client.post("/api/crowd-count/event", json={
+        "station_id": "DEMO01", "event_type": "invalid"
+    })
+    assert resp.status_code == 400
+
+
+def test_event_rejects_non_demo_station(client):
+    """INS01 등 다른 station_id 거부 → 400."""
+    resp = client.post("/api/crowd-count/event", json={
+        "station_id": "INS01", "event_type": "in"
+    })
+    assert resp.status_code == 400

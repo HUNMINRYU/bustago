@@ -129,3 +129,56 @@ def get_crowd_count_history():
         "count": len(rows),
         "timestamp": datetime.now().isoformat(),
     })
+
+
+@crowd_bp.route("/api/crowd-count/event", methods=["POST"])
+@limiter.limit("30 per minute")
+def post_crowd_count_event():
+    """시연용 수동 이벤트 주입. station_id=DEMO01 전용.
+
+    Body: {"station_id": "DEMO01", "event_type": "in" | "board"}
+    마지막 row를 읽어와 count_in 또는 count_board 를 +1 한 새 row INSERT.
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, description="JSON body is required")
+
+    station_id = data.get("station_id")
+    _validate_demo_station(station_id)
+
+    event_type = data.get("event_type")
+    if event_type not in ("in", "board"):
+        abort(400, description="event_type must be 'in' or 'board'")
+
+    last = fetchone(
+        "SELECT count_in, count_board FROM crowd_counts "
+        "WHERE station_id = ? ORDER BY id DESC LIMIT 1",
+        (station_id,),
+    )
+    last_in = last["count_in"] if last else 0
+    last_board = last["count_board"] if last else 0
+
+    if event_type == "in":
+        new_in = last_in + 1
+        new_board = last_board
+    else:
+        if last_in - last_board <= 0:
+            abort(400, description="대기 인원이 0인데 board 불가")
+        new_in = last_in
+        new_board = last_board + 1
+
+    new_waiting = max(0, new_in - new_board)
+
+    execute(
+        "INSERT INTO crowd_counts (station_id, count_in, count_board, current_waiting, source) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (station_id, new_in, new_board, new_waiting, "demo_button"),
+    )
+
+    return jsonify({
+        "status": "ok",
+        "count_in": new_in,
+        "count_board": new_board,
+        "current_waiting": new_waiting,
+        "timestamp": datetime.now().isoformat(),
+    })
