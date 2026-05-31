@@ -56,6 +56,9 @@ def _init_sqlite_schema():
         raw = f.read()
     # MySQL 전용 구문을 SQLite 호환으로 변환
     sql = raw
+    # MySQL `INT AUTO_INCREMENT PRIMARY KEY` → SQLite `INTEGER PRIMARY KEY`
+    # SQLite 자동증가는 정확히 `INTEGER`일 때만 동작 — `INT`로 두면 id=NULL이 된다.
+    sql = sql.replace("INT AUTO_INCREMENT PRIMARY KEY", "INTEGER PRIMARY KEY")
     sql = sql.replace("AUTO_INCREMENT", "")
     sql = sql.replace("TINYINT", "INTEGER")
     sql = sql.replace("DECIMAL(10,7)", "REAL")
