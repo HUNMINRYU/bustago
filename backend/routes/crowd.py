@@ -209,3 +209,59 @@ def post_crowd_count_reset():
         "deleted_rows": deleted_rows,
         "timestamp": datetime.now().isoformat(),
     })
+
+
+@crowd_bp.route("/api/crowd-count/recent", methods=["GET"])
+@limiter.limit("60 per minute")
+def get_crowd_count_recent():
+    """대시보드 이벤트 피드 — 최근 N건의 IN/BOARD 전이만 반환.
+
+    인접 row 쌍의 count_in / count_board 차분을 비교해 event_type 판정.
+    동일 카운트 row(예: heartbeat)는 제외.
+    """
+    station_id = request.args.get("station_id")
+    _validate_demo_station(station_id)
+
+    limit_str = request.args.get("limit", "5")
+    if not limit_str.isdigit() or int(limit_str) < 1 or int(limit_str) > 50:
+        abort(400, description="limit must be 1-50")
+    limit = int(limit_str)
+
+    # 차분 계산 위해 limit+1 개 row 조회 (가장 오래된 1건은 이전값 비교용)
+    rows = fetchall(
+        "SELECT count_in, count_board, current_waiting, created_at "
+        "FROM crowd_counts WHERE station_id = ? ORDER BY id DESC LIMIT ?",
+        (station_id, limit + 1),
+    )
+
+    events = []
+    for i in range(len(rows) - 1):
+        cur = rows[i]
+        prev = rows[i + 1]
+        if cur["count_in"] > prev["count_in"]:
+            event_type = "in"
+        elif cur["count_board"] > prev["count_board"]:
+            event_type = "board"
+        else:
+            continue  # tick (변화 없음)
+        events.append({
+            "created_at": cur["created_at"],
+            "event_type": event_type,
+            "current_waiting": cur["current_waiting"],
+        })
+
+    # 가장 오래된 row가 첫 이벤트인지 확인 (이전값이 없어서 위 루프에서 제외됨)
+    if rows and len(rows) <= limit:
+        first = rows[-1]
+        if first["count_in"] > 0 and first["count_board"] == 0:
+            events.append({
+                "created_at": first["created_at"],
+                "event_type": "in",
+                "current_waiting": first["current_waiting"],
+            })
+
+    return jsonify({
+        "status": "ok",
+        "events": events[:limit],
+        "timestamp": datetime.now().isoformat(),
+    })

@@ -454,3 +454,52 @@ def test_reset_on_empty_returns_zero(client):
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["deleted_rows"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Demo 엔드포인트 — GET /api/crowd-count/recent
+# ---------------------------------------------------------------------------
+
+def test_recent_returns_empty_when_no_events(client):
+    """이벤트 없는 상태 → events 빈 배열."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    resp = client.get("/api/crowd-count/recent?station_id=DEMO01&limit=5")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "ok"
+    assert body["events"] == []
+
+
+def test_recent_returns_in_then_board(client):
+    """IN, BOARD 순서로 주입 → 최신순으로 board, in 반환."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "in"})
+    client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "board"})
+
+    resp = client.get("/api/crowd-count/recent?station_id=DEMO01&limit=5")
+    body = resp.get_json()
+    assert len(body["events"]) == 2
+    assert body["events"][0]["event_type"] == "board"
+    assert body["events"][0]["current_waiting"] == 0
+    assert body["events"][1]["event_type"] == "in"
+    assert body["events"][1]["current_waiting"] == 1
+
+
+def test_recent_respects_limit(client):
+    """이벤트 7건 주입 후 limit=3 → 3건만 반환."""
+    from backend.models.db import execute as db_execute
+    db_execute("DELETE FROM crowd_counts WHERE station_id = 'DEMO01'")
+    for _ in range(7):
+        client.post("/api/crowd-count/event", json={"station_id": "DEMO01", "event_type": "in"})
+
+    resp = client.get("/api/crowd-count/recent?station_id=DEMO01&limit=3")
+    body = resp.get_json()
+    assert len(body["events"]) == 3
+
+
+def test_recent_rejects_non_demo_station(client):
+    """INS01 호출 → 400."""
+    resp = client.get("/api/crowd-count/recent?station_id=INS01&limit=5")
+    assert resp.status_code == 400
