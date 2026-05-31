@@ -141,6 +141,8 @@ class APIReporter:
         self.station_id = station_id
         self.interval = interval
         self._last_post = 0.0
+        self._last_in = 0       # 신규 — 직전 POST 시점의 카운트
+        self._last_board = 0    # 신규
 
     def maybe_post(self, counter: LineCrossingCounter):
         """interval 경과 시 POST 전송."""
@@ -169,6 +171,19 @@ class APIReporter:
         """interval 무시하고 즉시 POST (종료 시 최종 카운트 동기화용)."""
         self._last_post = 0.0
         self.maybe_post(counter)
+
+    def post_if_changed(self, counter: LineCrossingCounter) -> bool:
+        """count_in/board 가 직전 호출 이후 변하면 즉시 POST.
+
+        Returns:
+            True if POST sent, False otherwise.
+        """
+        if counter.count_in != self._last_in or counter.count_board != self._last_board:
+            self._last_in = counter.count_in
+            self._last_board = counter.count_board
+            self.post_now(counter)
+            return True
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -289,8 +304,9 @@ def run_counter(args):
             # 추적 해제된 Track 정리
             lc.cleanup_lost_tracks(active_ids)
 
-            # API POST (10초 간격)
-            reporter.maybe_post(lc)
+            # API POST — 이벤트 발생 즉시 + 10초 heartbeat
+            reporter.post_if_changed(lc)   # 신규: 변화 감지 시 즉시
+            reporter.maybe_post(lc)         # 유지: 10초 heartbeat
 
             # FPS 계산
             fps_counter += 1
