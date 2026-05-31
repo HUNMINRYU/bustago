@@ -81,6 +81,25 @@
       <p class="counting-timestamp" id="counting-ts"></p>
     </section>
 
+    <!-- Realtime Event Feed (DEMO01 전용) -->
+    <section class="panel events-panel" id="events-panel" hidden>
+      <h2>최근 이벤트 <span class="live-badge">LIVE</span></h2>
+      <ul id="events-list" class="events-list">
+        <li class="events-empty">이벤트 대기 중...</li>
+      </ul>
+    </section>
+
+    <!-- Demo Control Panel (DEMO01 전용) -->
+    <section class="panel demo-control-panel" id="demo-control-panel" hidden>
+      <h2>시연 제어</h2>
+      <div class="demo-buttons">
+        <button id="btn-in"    class="demo-btn demo-in">🚶 IN +1</button>
+        <button id="btn-board" class="demo-btn demo-board">🚌 BOARD +1</button>
+        <button id="btn-reset" class="demo-btn demo-reset">↺ 리셋</button>
+      </div>
+      <p class="demo-hint">카메라가 사람을 놓쳤을 때 백업. DEMO01 전용. 리셋은 counter.py 재시작 필요.</p>
+    </section>
+
     <!-- Chart + Map Row -->
     <section class="chart-map-row">
       <div class="panel chart-panel">
