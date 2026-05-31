@@ -2,17 +2,24 @@
 
 var API_BASE = window.location.origin + '/api';
 
-async function fetchAPI(endpoint, params) {
+async function fetchAPI(endpoint, params, method, body) {
   params = params || {};
+  method = method || 'GET';
   var url = new URL(API_BASE + endpoint);
   Object.entries(params).forEach(function (entry) {
     url.searchParams.set(entry[0], entry[1]);
   });
+  var init = { method: method, headers: {} };
+  if (body) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
   try {
-    var res = await fetch(url);
+    var res = await fetch(url, init);
     var data = await res.json();
     if (data.status !== 'ok') throw new Error(data.message);
-    return data.data;
+    // POST 응답은 data.data 가 없을 수 있으므로 전체 반환
+    return data.data !== undefined ? data.data : data;
   } catch (e) {
     console.error('API Error: ' + endpoint, e);
     return null;
@@ -56,4 +63,20 @@ async function fetchBusArrival(busstopId) {
 // 2026-05-17: 광주 BIS 실시간 버스 위치 — captest에서 본 시스템으로 이관
 async function fetchBusLocation(lineId) {
   return fetchAPI('/bus_location/' + lineId);
+}
+
+// 2026-05-30: 시연 대시보드 — 수동 이벤트 / 리셋 / 이벤트 피드 (DEMO01 전용)
+async function postDemoEvent(eventType) {
+  return fetchAPI('/crowd-count/event', null, 'POST',
+                  { station_id: 'DEMO01', event_type: eventType });
+}
+
+async function postDemoReset() {
+  return fetchAPI('/crowd-count/reset', null, 'POST',
+                  { station_id: 'DEMO01' });
+}
+
+async function fetchRecentEvents(stationId, limit) {
+  return fetchAPI('/crowd-count/recent',
+                  { station_id: stationId, limit: limit || 5 });
 }
