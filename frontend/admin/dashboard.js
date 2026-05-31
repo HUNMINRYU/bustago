@@ -23,8 +23,23 @@ var leafletMap = null;
 var mapMarkers = [];
 var refreshInterval = null;
 var REFRESH_MS = 60000; // 60 seconds
-var CROWD_REFRESH_MS = 10000;
+var CROWD_REFRESH_MS = 2000;
 var JETSON_STALE_MS = 60000;
+
+// DEMO01 옵션 누락 시 강제 추가 (마크업/loadStations에 이미 있으면 noop)
+function ensureDemoOption(stationFilter) {
+  if (!stationFilter) return;
+  var hasDemo = false;
+  for (var i = 0; i < stationFilter.options.length; i++) {
+    if (stationFilter.options[i].value === 'DEMO01') { hasDemo = true; break; }
+  }
+  if (!hasDemo) {
+    var opt = document.createElement('option');
+    opt.value = 'DEMO01';
+    opt.textContent = '시연용 정류장';
+    stationFilter.appendChild(opt);
+  }
+}
 
 // DOM elements
 var stationFilter = document.getElementById('station-filter');
@@ -60,12 +75,43 @@ document.addEventListener('DOMContentLoaded', async function () {
   initMap();
   await loadDashboardData();
   hideLoading();
+  ensureDemoOption(stationFilter);
+  applyDemoVisibility();
   loadCrowdCount();
-  setInterval(loadCrowdCount, CROWD_REFRESH_MS);
+  loadEvents();
+  setInterval(function() {
+    loadCrowdCount();
+    loadEvents();
+  }, CROWD_REFRESH_MS);
 
   stationFilter.addEventListener('change', loadDashboardData);
-  stationFilter.addEventListener('change', loadCrowdCount);
+  stationFilter.addEventListener('change', function() {
+    applyDemoVisibility();
+    loadCrowdCount();
+    loadEvents();
+  });
   periodFilter.addEventListener('change', loadDashboardData);
+
+  var btnIn    = document.getElementById('btn-in');
+  var btnBoard = document.getElementById('btn-board');
+  var btnReset = document.getElementById('btn-reset');
+
+  if (btnIn) btnIn.addEventListener('click', async function() {
+    await postDemoEvent('in');
+    loadCrowdCount();
+    loadEvents();
+  });
+  if (btnBoard) btnBoard.addEventListener('click', async function() {
+    await postDemoEvent('board');
+    loadCrowdCount();
+    loadEvents();
+  });
+  if (btnReset) btnReset.addEventListener('click', async function() {
+    if (!confirm('DEMO01 카운트를 모두 0으로 되돌립니다. counter.py도 Ctrl+C → 재실행해 주세요.')) return;
+    await postDemoReset();
+    loadCrowdCount();
+    loadEvents();
+  });
 
   // Auto-refresh every 60 seconds
   refreshInterval = setInterval(function () {
@@ -441,6 +487,19 @@ function fillStatsTable(statsRows) {
   });
 }
 
+function setCardValue(id, newVal) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var current = el.textContent;
+  if (current !== String(newVal)) {
+    el.classList.remove('flash');   // 재시작 위해
+    void el.offsetWidth;             // 강제 reflow → animation restart
+    el.classList.add('flash');
+    setTimeout(function() { el.classList.remove('flash'); }, 600);
+  }
+  el.textContent = newVal;
+}
+
 async function loadCrowdCount() {
   var sid = stationFilter.value === 'all' ? 'INS01' : stationFilter.value;
   var data = await fetchCrowdCount(sid);
@@ -448,9 +507,9 @@ async function loadCrowdCount() {
   var statusEl = document.getElementById('jetson-status');
 
   if (data) {
-    document.getElementById('cnt-waiting').textContent = data.current_waiting;
-    document.getElementById('cnt-in').textContent = data.count_in;
-    document.getElementById('cnt-board').textContent = data.count_board;
+    setCardValue('cnt-waiting', data.current_waiting);
+    setCardValue('cnt-in', data.count_in);
+    setCardValue('cnt-board', data.count_board);
     document.getElementById('counting-ts').textContent = '기준: ' + data.created_at;
 
     var diff = Date.now() - new Date(data.created_at).getTime();
@@ -469,4 +528,37 @@ async function loadCrowdCount() {
     statusEl.textContent = 'Jetson 미연결';
     document.getElementById('counting-ts').textContent = '';
   }
+}
+
+async function loadEvents() {
+  var sid = stationFilter.value;
+  if (sid !== 'DEMO01') return;
+
+  var data = await fetchRecentEvents('DEMO01', 5);
+  var list = document.getElementById('events-list');
+  if (!list) return;
+
+  if (!data || !data.events || data.events.length === 0) {
+    list.innerHTML = '<li class="events-empty">이벤트 대기 중...</li>';
+    return;
+  }
+
+  list.innerHTML = data.events.map(function(ev) {
+    var icon = ev.event_type === 'in' ? '🚶' : '🚌';
+    var label = ev.event_type === 'in' ? 'IN +1' : 'BOARD +1';
+    var cls = 'event-' + ev.event_type;
+    var time = (ev.created_at || '').slice(11, 19);   // "HH:MM:SS"
+    return '<li class="' + cls + '">' +
+      time + '  ' + icon + ' ' + label +
+      '  (대기 ' + ev.current_waiting + '명)' +
+    '</li>';
+  }).join('');
+}
+
+function applyDemoVisibility() {
+  var isDemo = (stationFilter.value === 'DEMO01');
+  var demoPanel = document.getElementById('demo-control-panel');
+  var eventsPanel = document.getElementById('events-panel');
+  if (demoPanel)   demoPanel.hidden = !isDemo;
+  if (eventsPanel) eventsPanel.hidden = !isDemo;
 }
