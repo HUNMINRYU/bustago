@@ -3,7 +3,7 @@
 // 정적 자산은 cache-first, 외부 폰트는 network-first 전략으로 처리됨
 // 캐시 갱신 시 CACHE 버전을 올리면 자동으로 이전 캐시가 폐기됨
 
-const CACHE = 'bustago-v3';
+const CACHE = 'bustago-v4';
 
 // 오프라인에서도 동작해야 하는 핵심 자산 목록 — install 시 사전 캐시됨
 const ASSETS = [
@@ -11,6 +11,7 @@ const ASSETS = [
   'style.css',
   'app.js',
   'data.js',
+  'shuttle.js',
   '../shared/api.js',
   'manifest.json',
 ];

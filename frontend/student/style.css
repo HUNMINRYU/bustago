@@ -558,3 +558,21 @@ input { font-family: inherit; }
 .ls-mine .ls-name { font-weight:800; color:#2563eb; }
 .ls-mine .ls-dot::before { background:#2563eb; width:13px; height:13px; }
 .ls-loading { padding:20px; text-align:center; color:var(--text-secondary); }
+
+/* 하교 셔틀 시간표 (INS01) */
+.shuttle { display:flex; flex-direction:column; }
+.sh-head { font-size:15px; font-weight:800; color:var(--text-primary); padding:6px 2px 2px; }
+.sh-sub { font-size:12px; font-weight:500; color:var(--text-secondary); margin-top:2px; }
+.sh-round { font-size:12px; font-weight:700; color:var(--search-count-fg);
+  background:var(--search-count-bg); border-radius:6px; padding:4px 8px; margin:10px 0 4px; align-self:flex-start; }
+.sh-bus { border-bottom:1px solid var(--search-input-border); }
+.sh-bus-head { display:flex; align-items:center; gap:8px; padding:11px 4px; cursor:pointer; }
+.sh-no { font-size:15px; color:var(--text-primary); }
+.sh-time { font-size:13px; font-weight:700; color:#2563eb; }
+.sh-dest { flex:1; min-width:0; font-size:12px; color:var(--text-secondary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sh-chev { color:var(--text-muted); transition:transform .15s; }
+.sh-bus-head.open .sh-chev { transform:rotate(180deg); }
+.sh-stops { list-style:none; margin:0 0 8px; padding:4px 0 4px 6px; }
+.sh-stops li { font-size:13px; color:var(--text-secondary); padding:3px 0;
+  border-left:2px solid var(--search-input-border); padding-left:10px; }

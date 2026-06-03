@@ -234,7 +234,12 @@ async function loadBoard() {
   if (!s) { boardHead.hidden = true; boardList.innerHTML = ''; return; }
   if (!busstopId) {
     boardHead.hidden = true;
-    boardList.innerHTML = '<div class="bd-empty">🚍 셔틀 정류장 · 실시간 시내버스 도착 없음</div>';
+    if (s.ars_no === 'INS01' && window.SHUTTLE_SCHEDULE) {
+      boardList.innerHTML = renderShuttleHTML(window.SHUTTLE_SCHEDULE);
+      bindShuttleAccordion();
+    } else {
+      boardList.innerHTML = '<div class="bd-empty">🚍 셔틀 정류장 · 실시간 시내버스 도착 없음</div>';
+    }
     return;
   }
   var board = await Data.loadStationBoard(busstopId);
@@ -266,6 +271,47 @@ function startBoardTimer() {
 }
 function stopBoardTimer() {
   if (state.boardTimer) { clearInterval(state.boardTimer); state.boardTimer = null; }
+}
+
+// ---- 하교 셔틀 시간표 (INS01, 큐레이션 데이터) ----
+function shuttleBusHTML(bus, key) {
+  var dest = bus.stops.length ? bus.stops[bus.stops.length - 1] : '';
+  var stopsHTML = bus.stops.map(function (st, i) {
+    return '<li>' + (i + 1) + '. ' + esc(st) + '</li>';
+  }).join('');
+  return '<div class="sh-bus">' +
+    '<div class="sh-bus-head" role="button" tabindex="0" data-key="' + key + '">' +
+      '<b class="sh-no">' + esc(bus.no) + '</b>' +
+      '<span class="sh-time">' + esc(bus.time) + '</span>' +
+      '<span class="sh-dest">' + esc(dest) + ' 방면</span>' +
+      '<span class="sh-chev">▾</span>' +
+    '</div>' +
+    '<ul class="sh-stops" id="' + key + '" hidden>' + stopsHTML + '</ul>' +
+  '</div>';
+}
+
+function renderShuttleHTML(sched) {
+  var html = '<div class="shuttle">' +
+    '<div class="sh-head">🚌 ' + esc(sched.title) +
+      '<div class="sh-sub">탑승: ' + esc(sched.boardingPoint) + '</div></div>';
+  sched.rounds.forEach(function (round, ri) {
+    html += '<div class="sh-round">' + esc(round.label) + '</div>';
+    round.buses.forEach(function (bus, bi) {
+      html += shuttleBusHTML(bus, 'sh-' + ri + '-' + bi);
+    });
+  });
+  return html + '</div>';
+}
+
+function bindShuttleAccordion() {
+  boardList.querySelectorAll('.sh-bus-head').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var ul = document.getElementById(el.dataset.key);
+      if (!ul) return;
+      ul.hidden = !ul.hidden;
+      el.classList.toggle('open', !ul.hidden);
+    });
+  });
 }
 
 // ---- 노선 상세 (BIS 경유정류소 + 현재 위치) ----
