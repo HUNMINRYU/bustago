@@ -145,6 +145,75 @@ input { font-family: inherit; }
 .empty-title { color: var(--text-primary); }
 .empty-sub { color: var(--text-muted); margin-top: 4px; font-size: 14px; }
 
+/* 홈 상단 실시간 정류장 상황 카드 */
+.station-status-card {
+  padding: 14px 16px;
+}
+.status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.status-kicker {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.status-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.live-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 5px rgba(148, 163, 184, 0.16);
+  flex: 0 0 auto;
+}
+.live-dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.16);
+}
+.live-dot.stale {
+  background: #eab308;
+  box-shadow: 0 0 0 5px rgba(234, 179, 8, 0.16);
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.status-grid > div {
+  min-width: 0;
+  background: var(--search-count-bg);
+  border-radius: 10px;
+  padding: 10px 6px;
+  text-align: center;
+}
+.status-value {
+  display: block;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.status-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.status-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 10px;
+  text-align: right;
+}
+
 /* ====================================================
  * 노선 검색
  * ==================================================== */

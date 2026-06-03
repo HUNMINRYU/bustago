@@ -45,6 +45,18 @@ test('mapStations: 광주 우선 정렬 + busstop 맵', () => {
   assert.strictEqual(r.busstopMap['INS01'], 1981);
 });
 
+test('mapStations: 서울 샘플과 원시 GJ 정류장을 학생 목록에서 제외하고 GATE01 busstop fallback', () => {
+  const data = [
+    { ars_no: '22011', station_name: '지하철2호선강남역', gj_busstop_id: null },
+    { ars_no: 'GJ3230', station_name: '광주대 (3230)', gj_busstop_id: 1981 },
+    { ars_no: 'GATE01', station_name: '광주대 정문', gj_busstop_id: null },
+    { ars_no: 'DEMO01', station_name: '시연용 정류장', gj_busstop_id: null },
+  ];
+  const r = D.mapStations(data);
+  assert.deepStrictEqual(r.stations.map((s) => s.ars_no), ['GATE01', 'DEMO01']);
+  assert.strictEqual(r.busstopMap.GATE01, 1981);
+});
+
 test('mapArrivalsForRoute: 노선명 매칭 + 분 오름차순 + 6개 제한', () => {
   const items = [
     { SHORT_LINE_NAME: '송정51', REMAIN_MIN: '7', REMAIN_STOP: '4', LOW_BUS: 0, DIR_END: '광주역', LINE_ID: 9 },
@@ -67,6 +79,16 @@ test('mapArrivalsForRoute: 7개 이상 → 6개로 제한 + 가장 가까운 것
   assert.strictEqual(r[0].min, 2); // 가장 가까운 것 먼저
 });
 
+test('mapArrivalsForRoute: route-recommend 표시명과 BIS 단축 노선명 표기 차이 허용', () => {
+  const items = [
+    { SHORT_LINE_NAME: '419', REMAIN_MIN: '4', REMAIN_STOP: '2', LOW_BUS: 0, DIR_END: '광주역', LINE_ID: 419 },
+    { SHORT_LINE_NAME: '518번', REMAIN_MIN: '9', REMAIN_STOP: '5', LOW_BUS: 0, DIR_END: '금남로', LINE_ID: 518 },
+  ];
+  const r = D.mapArrivalsForRoute(items, '419번 (광주역행)');
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].lineId, 419);
+});
+
 test('mapPredictsToForecast: predict 결과 배열 → 막대 데이터', () => {
   const preds = [
     { prediction: { level: 1 } }, null, { prediction: { level: 3 } },
@@ -79,4 +101,23 @@ test('mapPredictsToForecast: predict 결과 배열 → 막대 데이터', () => 
 });
 test('mapPredictsToForecast: null 입력 → 빈 결과 (안전 degradation)', () => {
   assert.deepStrictEqual(D.mapPredictsToForecast(null, 8), { hours: [], levels: [] });
+});
+
+test('mapCrowdCount: crowd-count 응답을 정류장 현황 뷰모델로 변환', () => {
+  const r = D.mapCrowdCount({
+    current_waiting: 7,
+    count_in: 12,
+    count_board: 5,
+    source: 'jetson',
+    created_at: '2026-06-03T10:00:00',
+  }, new Date('2026-06-03T10:00:30').getTime());
+  assert.deepStrictEqual(r, {
+    waiting: 7,
+    countIn: 12,
+    countBoard: 5,
+    source: 'jetson',
+    createdAt: '2026-06-03T10:00:00',
+    ageSec: 30,
+    stale: false,
+  });
 });

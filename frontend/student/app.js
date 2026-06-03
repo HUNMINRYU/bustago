@@ -22,6 +22,7 @@ const BUS_TYPE = {
 
 // 바텀시트 닫힘 애니메이션(transform 0.37s)과 동기화 — 재오픈 가드로 사용됨
 const SHEET_ANIM_MS = 370;
+const STATUS_REFRESH_MS = 10000;
 
 // =============================================================
 // 상태
@@ -42,6 +43,7 @@ const state = {
   closing: false,
   reopenTimer: null,
   arrivalTimer: null,      // 시트 도착 30초 갱신
+  statusTimer: null,       // 홈 정류장 현황 10초 갱신
   theme: localStorage.getItem('bustago_theme') || 'light',
 };
 
@@ -67,6 +69,13 @@ const stationListEl  = $('stationList');
 const stationCtxEl    = $('stationCtx');
 const stationCtxBtn   = $('stationCtxBtn');
 const stationCtxName  = $('stationCtxName');
+const stationStatusCard = $('stationStatusCard');
+const stationStatusName = $('stationStatusName');
+const stationStatusDot  = $('stationStatusDot');
+const statusWaitingEl   = $('statusWaiting');
+const statusInEl        = $('statusIn');
+const statusBoardEl     = $('statusBoard');
+const stationStatusMeta = $('stationStatusMeta');
 
 // 노선 상세 바텀시트 요소 — 노선 클릭 시 표시되는 패널/배경/핸들/즐겨찾기 버튼
 const sheetEl         = $('routeSheet');
@@ -102,6 +111,7 @@ updateThemeUI();
   }
   renderFavs();
   renderStationContext();
+  refreshStationStatus();
   renderSearchResults();
 })();
 
@@ -139,6 +149,7 @@ stationCtxBtn.addEventListener('click', () => {
   state.query = '';
   searchInput.value = '';
   renderStationContext();
+  refreshStationStatus();
   renderSearchResults();
 });
 
@@ -174,6 +185,57 @@ function renderStationContext() {
   }
 }
 
+function refreshStationStatus() {
+  if (state.statusTimer) { clearTimeout(state.statusTimer); state.statusTimer = null; }
+
+  const s = state.activeStation;
+  if (!s) {
+    stationStatusCard.hidden = true;
+    return;
+  }
+
+  stationStatusCard.hidden = false;
+  stationStatusName.textContent = s.station_name;
+  stationStatusDot.className = 'live-dot';
+  stationStatusMeta.textContent = '데이터 확인 중';
+
+  Data.loadStationStatus(s.ars_no).then((status) => {
+    if (!state.activeStation || state.activeStation.ars_no !== s.ars_no) return;
+    renderStationStatus(status, s);
+    state.statusTimer = setTimeout(refreshStationStatus, STATUS_REFRESH_MS);
+  }).catch(() => {
+    if (!state.activeStation || state.activeStation.ars_no !== s.ars_no) return;
+    renderStationStatus(null, s);
+    state.statusTimer = setTimeout(refreshStationStatus, STATUS_REFRESH_MS);
+  });
+}
+
+function renderStationStatus(status, station) {
+  stationStatusCard.hidden = false;
+  stationStatusName.textContent = station.station_name;
+
+  if (!status) {
+    stationStatusDot.className = 'live-dot';
+    statusWaitingEl.textContent = '—';
+    statusInEl.textContent = '—';
+    statusBoardEl.textContent = '—';
+    stationStatusMeta.textContent = '카운팅 데이터 없음';
+    return;
+  }
+
+  stationStatusDot.className = 'live-dot ' + (status.stale ? 'stale' : 'online');
+  statusWaitingEl.textContent = status.waiting;
+  statusInEl.textContent = status.countIn;
+  statusBoardEl.textContent = status.countBoard;
+  if (status.ageSec == null) {
+    stationStatusMeta.textContent = '수신 시각 확인 불가';
+  } else if (status.ageSec < 5) {
+    stationStatusMeta.textContent = '방금 업데이트';
+  } else {
+    stationStatusMeta.textContent = status.ageSec + '초 전 수신';
+  }
+}
+
 // 정류장 한 줄 HTML
 function stationItemHTML(s) {
   return '<div class="station-item card" role="button" tabindex="0" data-ars="' + esc(s.ars_no) + '">' +
@@ -191,6 +253,7 @@ function bindStationItems() {
       state.query = '';
       searchInput.value = '';
       renderStationContext();
+      refreshStationStatus();
       const cards = await Data.loadRoutesForStation(s.ars_no, s.station_name);
       if (!state.activeStation || state.activeStation.ars_no !== s.ars_no) return; // 경쟁 가드
       state.routeCards = cards;

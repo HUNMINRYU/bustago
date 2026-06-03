@@ -41,6 +41,30 @@
   <main class="app-main">
     <!-- 즐겨찾기 패널 — 기본 홈. 즐겨찾기 노선 목록 또는 빈 상태로 구성됨 -->
     <section class="tab-panel active" data-panel="fav">
+      <div class="station-status-card card" id="stationStatusCard" hidden>
+        <div class="status-head">
+          <div>
+            <div class="status-kicker">실시간 정류장 상황</div>
+            <div class="status-title" id="stationStatusName">광주대 인성관</div>
+          </div>
+          <span class="live-dot" id="stationStatusDot"></span>
+        </div>
+        <div class="status-grid">
+          <div>
+            <span class="status-value" id="statusWaiting">—</span>
+            <span class="status-label">대기</span>
+          </div>
+          <div>
+            <span class="status-value" id="statusIn">—</span>
+            <span class="status-label">진입</span>
+          </div>
+          <div>
+            <span class="status-value" id="statusBoard">—</span>
+            <span class="status-label">탑승</span>
+          </div>
+        </div>
+        <div class="status-meta" id="stationStatusMeta">데이터 확인 중</div>
+      </div>
       <div class="fav-list" id="favList"></div>
       <div class="empty-state" id="favEmpty">
         <div class="empty-ico">⭐</div>

@@ -14,11 +14,24 @@ function makeFavId(stationId, routeName) {
   return stationId + '::' + routeName;
 }
 
+function isOperationalStation(station) {
+  var id = station && station.ars_no;
+  return id === 'INS01' || id === 'GATE01' || id === 'DEMO01';
+}
+
 // 버스 유형 추론: 도착항목 LOW_BUS 우선, 다음 노선명 패턴, 기본 normal
 function deriveBusType(routeName, arrivalItem) {
   if (arrivalItem && Number(arrivalItem.LOW_BUS) === 1) return 'low';
   if (/좌석|급행/.test(routeName || '')) return 'express';
   return 'normal';
+}
+
+function normalizeRouteName(routeName) {
+  return String(routeName == null ? '' : routeName)
+    .replace(/\([^)]*\)/g, '')
+    .replace(/번/g, '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
 }
 
 // route-recommend 응답 → 노선 카드 뷰모델 배열
@@ -43,7 +56,13 @@ function mapRoutesToCards(resp, stationId, stationName) {
 // stations 응답 → { stations(광주 우선 정렬), busstopMap }
 function mapStations(data) {
   if (!Array.isArray(data)) return { stations: [], busstopMap: {} };
-  var stations = data.slice().sort(function (a, b) {
+  var gateBusstopId = null;
+  data.forEach(function (s) {
+    if (!gateBusstopId && /^GJ/.test(s.ars_no || '') && s.gj_busstop_id) {
+      gateBusstopId = s.gj_busstop_id;
+    }
+  });
+  var stations = data.filter(isOperationalStation).slice().sort(function (a, b) {
     var aGJ = /^(INS|GATE|GJ)/.test(a.ars_no) ? 0 : 1;
     var bGJ = /^(INS|GATE|GJ)/.test(b.ars_no) ? 0 : 1;
     return aGJ - bGJ;
@@ -52,16 +71,21 @@ function mapStations(data) {
   stations.forEach(function (s) {
     if (s.gj_busstop_id) busstopMap[s.ars_no] = s.gj_busstop_id;
   });
+  if (!busstopMap.GATE01 && gateBusstopId) busstopMap.GATE01 = gateBusstopId;
   return { stations: stations, busstopMap: busstopMap };
 }
 
 // BIS 도착 items → 특정 노선의 도착 뷰모델 (분 오름차순, 최대 6개)
 function mapArrivalsForRoute(items, routeName) {
   if (!Array.isArray(items)) return [];
+  var target = normalizeRouteName(routeName);
   return items
     .filter(function (it) {
       var nm = it.SHORT_LINE_NAME || it.LINE_NAME || '';
-      return nm === routeName;
+      var normalized = normalizeRouteName(nm);
+      return normalized === target ||
+        (!!target && normalized.indexOf(target) >= 0) ||
+        (!!normalized && target.indexOf(normalized) >= 0);
     })
     .map(function (it) {
       return {
@@ -76,6 +100,23 @@ function mapArrivalsForRoute(items, routeName) {
     })
     .sort(function (a, b) { return a.min - b.min; })
     .slice(0, 6);
+}
+
+// crowd-count 응답 → 정류장 현황 뷰모델. nowMs는 테스트에서 시간 고정용.
+function mapCrowdCount(data, nowMs) {
+  if (!data) return null;
+  var createdAt = data.created_at || '';
+  var ts = createdAt ? new Date(createdAt).getTime() : NaN;
+  var ageSec = Number.isFinite(ts) ? Math.max(0, Math.floor(((nowMs || Date.now()) - ts) / 1000)) : null;
+  return {
+    waiting: Number(data.current_waiting) || 0,
+    countIn: Number(data.count_in) || 0,
+    countBoard: Number(data.count_board) || 0,
+    source: data.source || '',
+    createdAt: createdAt,
+    ageSec: ageSec,
+    stale: ageSec != null ? ageSec > 60 : true,
+  };
 }
 
 // predict 결과 배열(6개) → 막대 그래프 데이터 (null은 데모값)
@@ -129,6 +170,13 @@ async function loadForecast(stationId) {
   return mapPredictsToForecast(preds, startHour);
 }
 
+// 학생 홈용 실시간 정류장 현황. 데이터 없으면 null.
+async function loadStationStatus(stationId) {
+  if (!stationId) return null;
+  var data = await fetchCrowdCount(stationId);
+  return mapCrowdCount(data);
+}
+
 // 노선 시트용 도착 + 운행 대수. busstopId 없으면 빈 결과.
 // 반환: { arrivals:[...], runningCount:Number|null }
 async function loadArrivalAndRunning(busstopId, routeName) {
@@ -152,8 +200,10 @@ if (typeof window !== 'undefined') {
     demoLevel: demoLevel, makeFavId: makeFavId, deriveBusType: deriveBusType,
     mapRoutesToCards: mapRoutesToCards, mapStations: mapStations,
     mapArrivalsForRoute: mapArrivalsForRoute, mapPredictsToForecast: mapPredictsToForecast,
+    mapCrowdCount: mapCrowdCount, normalizeRouteName: normalizeRouteName,
     loadStations: loadStations, loadRoutesForStation: loadRoutesForStation,
-    loadForecast: loadForecast, loadArrivalAndRunning: loadArrivalAndRunning,
+    loadForecast: loadForecast, loadStationStatus: loadStationStatus,
+    loadArrivalAndRunning: loadArrivalAndRunning,
   };
 }
 
@@ -162,14 +212,18 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     demoLevel: demoLevel,
     makeFavId: makeFavId,
+    isOperationalStation: isOperationalStation,
     deriveBusType: deriveBusType,
+    normalizeRouteName: normalizeRouteName,
     mapRoutesToCards: mapRoutesToCards,
     mapStations: mapStations,
     mapArrivalsForRoute: mapArrivalsForRoute,
     mapPredictsToForecast: mapPredictsToForecast,
+    mapCrowdCount: mapCrowdCount,
     loadStations: typeof fetchStations !== 'undefined' ? loadStations : undefined,
     loadRoutesForStation: typeof fetchRouteRecommend !== 'undefined' ? loadRoutesForStation : undefined,
     loadForecast: typeof fetchPredict !== 'undefined' ? loadForecast : undefined,
+    loadStationStatus: typeof fetchCrowdCount !== 'undefined' ? loadStationStatus : undefined,
     loadArrivalAndRunning: typeof fetchBusArrival !== 'undefined' ? loadArrivalAndRunning : undefined,
   };
 }
