@@ -35,6 +35,7 @@ const state = {
   busstopMap: {},          // ars_no → gj_busstop_id
   activeStation: null,     // { ars_no, station_name }
   routeCards: [],          // 현재 activeStation의 노선 카드 (검색 탭)
+  favCards: [],            // 즐겨찾기 탭에 표시 중인 라이브 카드 (시트 진입용)
   favs: new Map(JSON.parse(localStorage.getItem('bustago_favs_v2') || '[]')), // id → fav객체
   sheetRoute: null,
   sheetOpen: false,
@@ -135,6 +136,8 @@ searchInput.addEventListener('input', (e) => {
 stationCtxBtn.addEventListener('click', () => {
   state.activeStation = null;
   state.routeCards = [];
+  state.query = '';
+  searchInput.value = '';
   renderStationContext();
   renderSearchResults();
 });
@@ -173,8 +176,8 @@ function renderStationContext() {
 
 // 정류장 한 줄 HTML
 function stationItemHTML(s) {
-  return '<div class="station-item card" role="button" tabindex="0" data-ars="' + s.ars_no + '">' +
-    '<span class="si-name">' + s.station_name + '</span>' +
+  return '<div class="station-item card" role="button" tabindex="0" data-ars="' + esc(s.ars_no) + '">' +
+    '<span class="si-name">' + esc(s.station_name) + '</span>' +
     '<span class="si-chev">›</span></div>';
 }
 
@@ -187,8 +190,10 @@ function bindStationItems() {
       state.activeStation = s;
       state.query = '';
       searchInput.value = '';
-      state.routeCards = await Data.loadRoutesForStation(s.ars_no, s.station_name);
       renderStationContext();
+      const cards = await Data.loadRoutesForStation(s.ars_no, s.station_name);
+      if (!state.activeStation || state.activeStation.ars_no !== s.ars_no) return; // 경쟁 가드
+      state.routeCards = cards;
       renderSearchResults();
     });
   });
@@ -217,8 +222,16 @@ async function renderFavs() {
       });
     });
   }
+  state.favCards = cards;
   favListEl.innerHTML = cards.map(routeCardHTML).join('');
   bindRouteCards(favListEl);
+}
+
+// innerHTML 삽입 전 텍스트/속성 값 이스케이프 (XSS 방지)
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // 단일 노선 카드의 HTML 문자열을 만드는 데 사용됨
@@ -229,20 +242,20 @@ function routeCardHTML(r) {
   const t = BUS_TYPE[r.type];
   const isFav = state.favs.has(r.id);
   return `
-    <div class="route-card" role="button" tabindex="0" data-id="${r.id}">
+    <div class="route-card" role="button" tabindex="0" data-id="${esc(r.id)}">
       <div class="rc-left">
         <div class="rc-icon" style="background:${t.color}26;color:${t.color}">🚌</div>
         <div>
           <div class="rc-name-row">
-            <span class="rc-name">${r.name}</span>
+            <span class="rc-name">${esc(r.name)}</span>
             <span class="bus-badge" style="background:${t.color}">${t.label}</span>
           </div>
-          <div class="rc-dir">${r.from} → ${r.to}</div>
+          <div class="rc-dir">${esc(r.from)} → ${esc(r.to)}</div>
         </div>
       </div>
       <div class="rc-right">
         <span class="cong-badge" style="background:${c.color}">${c.label}</span>
-        <span class="rc-fav ${isFav ? 'on' : 'off'}" data-fav="${r.id}" role="button" aria-label="즐겨찾기">${isFav ? '★' : '☆'}</span>
+        <span class="rc-fav ${isFav ? 'on' : 'off'}" data-fav="${esc(r.id)}" role="button" aria-label="즐겨찾기">${isFav ? '★' : '☆'}</span>
       </div>
     </div>
   `;
@@ -269,6 +282,7 @@ function bindRouteCards(root) {
 // 현재 화면에 존재하는 카드 객체를 id로 찾음 (검색 결과 또는 즐겨찾기)
 function findCardById(id) {
   return state.routeCards.find((c) => c.id === id)
+      || state.favCards.find((c) => c.id === id)
       || [...state.favs.values()].map(favToCardStub).find((c) => c.id === id);
 }
 function favToCardStub(f) {
