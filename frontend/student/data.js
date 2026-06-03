@@ -120,7 +120,10 @@ async function loadForecast(stationId) {
   var weekday = jsDay === 0 ? 6 : jsDay - 1;
   var promises = [];
   for (var i = 0; i < 6; i++) {
-    promises.push(fetchPredict(stationId, (startHour + i) % 24, weekday));
+    var total = startHour + i;
+    var h = total % 24;
+    var wd = total >= 24 ? (weekday + 1) % 7 : weekday;
+    promises.push(fetchPredict(stationId, h, wd));
   }
   var preds = await Promise.all(promises);
   return mapPredictsToForecast(preds, startHour);
