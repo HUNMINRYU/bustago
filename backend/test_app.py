@@ -530,3 +530,37 @@ def test_kind_label_maps_known_codes():
     assert kind_label(4) == "농어촌"
     assert kind_label("3") == "지선"   # 문자열도 허용
     assert kind_label(None) == "버스"  # 폴백
+
+
+@responses.activate
+def test_station_board_merges_cache_with_arrival(client, monkeypatch):
+    """캐시 노선 목록 + arriveInfo ETA 병합, 매칭 없으면 arrival=None."""
+    import backend.routes.stations as st
+    monkeypatch.setattr(st, "_STATION_ROUTES_CACHE", {
+        "80": {"dir_label": "금호타운아파트 방향", "routes": [
+            {"line_id": 24, "line_name": "송암47", "line_kind": 2},
+            {"line_id": 99, "line_name": "수완03", "line_kind": 1},
+        ]}
+    })
+    responses.add(
+        responses.GET, f"{GJ_BIS_BASE_URL}/arriveInfo",
+        json={"RESPONSE": {"RESULT": {"RESULT_CODE": "SUCCESS"},
+              "ARRIVE_LIST": {"ITEM": [
+                  {"LINE_ID": 24, "REMAIN_MIN": 3, "REMAIN_STOP": 2, "LOW_BUS": 0, "ARRIVE_FLAG": 0}
+              ]}}},
+        status=200,
+    )
+    resp = client.get("/api/station-board/80")
+    assert resp.status_code == 200
+    data = resp.json["data"]
+    assert data["dir_label"] == "금호타운아파트 방향"
+    by_id = {r["line_id"]: r for r in data["routes"]}
+    assert by_id[24]["kind_label"] == "간선"
+    assert by_id[24]["arrival"]["min"] == 3
+    assert by_id[99]["arrival"] is None   # 도착 없음 = 정보없음
+
+
+def test_station_board_unknown_busstop_returns_empty(client):
+    resp = client.get("/api/station-board/12345")
+    assert resp.status_code == 200
+    assert resp.json["data"]["routes"] == []

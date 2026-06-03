@@ -4,11 +4,12 @@ BUSTAGO Backend -- /api/stations, /api/arrive, /api/lines, /api/bus_location, /a
 
 import json
 import logging
+import os
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from backend.models.db import fetchall
-from backend.config import GJ_BIS_API_KEY, GJ_BIS_BASE_URL
+from backend.config import GJ_BIS_API_KEY, GJ_BIS_BASE_URL, PROJECT_ROOT
 from backend.extensions import limiter
 
 log = logging.getLogger(__name__)
@@ -162,6 +163,67 @@ def gj_stops():
     return jsonify({
         "status": "ok",
         "data": GJ_STOPS,
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+_STATION_ROUTES_CACHE = None
+
+
+def _station_routes_cache() -> dict:
+    """station_routes_cache.json 로드 (1회). busstop_id(str) → {dir_label, routes:[...]}"""
+    global _STATION_ROUTES_CACHE
+    if _STATION_ROUTES_CACHE is None:
+        path = os.path.join(PROJECT_ROOT, "backend", "seeds", "station_routes_cache.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                _STATION_ROUTES_CACHE = json.load(f)
+        except (OSError, ValueError):
+            _STATION_ROUTES_CACHE = {}
+    return _STATION_ROUTES_CACHE
+
+
+@stations_bp.route("/api/station-board/<int:busstop_id>")
+@limiter.limit("30 per minute")
+def station_board(busstop_id: int):
+    """정류소 경유노선(캐시) + 실시간 도착(arriveInfo) 병합 — Kakao형 정류장 보드."""
+    entry = _station_routes_cache().get(str(busstop_id))
+    if not entry:
+        return jsonify({
+            "status": "ok",
+            "data": {"busstop_id": busstop_id, "dir_label": "", "routes": []},
+            "timestamp": datetime.now().isoformat(),
+        })
+
+    # 실시간 도착 (line_id → arrival)
+    arr_by_line = {}
+    data = _call_gj_bis("arriveInfo", {"BUSSTOP_ID": busstop_id})
+    for it in (_gj_bis_items(data, "ARRIVE_LIST") if data else []):
+        try:
+            lid = int(it.get("LINE_ID"))
+        except (TypeError, ValueError):
+            continue
+        arr_by_line[lid] = {
+            "min": int(it.get("REMAIN_MIN") or 0),
+            "stops": int(it.get("REMAIN_STOP") or 0),
+            "low": int(it.get("LOW_BUS") or 0) == 1,
+            "imminent": int(it.get("ARRIVE_FLAG") or 0) == 1,
+        }
+
+    routes = []
+    for r in entry["routes"]:
+        lid = r["line_id"]
+        routes.append({
+            "line_id": lid,
+            "line_name": r["line_name"],
+            "line_kind": r["line_kind"],
+            "kind_label": kind_label(r["line_kind"]),
+            "arrival": arr_by_line.get(lid),  # 없으면 None = 정보없음
+        })
+
+    return jsonify({
+        "status": "ok",
+        "data": {"busstop_id": busstop_id, "dir_label": entry["dir_label"], "routes": routes},
         "timestamp": datetime.now().isoformat(),
     })
 
