@@ -20,6 +20,11 @@ const BUS_TYPE = {
   normal:  { label: '일반', color: '#64748b' },
 };
 
+// 노선 종류 라벨 → 배지 색 (Kakao형 정류장 보드)
+const KIND_COLOR = { '급행': '#ef4444', '간선': '#3b82f6', '지선': '#22c55e', '농어촌': '#f97316' };
+// 광주대 BIS 정류소 (노선 상세에서 내 정류장 하이라이트)
+const MY_BUSSTOP_IDS = [80, 1981];
+
 // 바텀시트 닫힘 애니메이션(transform 0.37s)과 동기화 — 재오픈 가드로 사용됨
 const SHEET_ANIM_MS = 370;
 const STATUS_REFRESH_MS = 10000;
@@ -44,6 +49,10 @@ const state = {
   reopenTimer: null,
   arrivalTimer: null,      // 시트 도착 30초 갱신
   statusTimer: null,       // 홈 정류장 현황 10초 갱신
+  boardTimer: null,        // 정류장 보드 30초 갱신
+  lineSheetOpen: false,
+  posTimer: null,          // 현재 위치 20초 갱신 (Task 8)
+  curLine: null,           // 현재 열린 노선 상세 뷰모델
   theme: localStorage.getItem('bustago_theme') || 'light',
 };
 
@@ -77,6 +86,13 @@ const statusInEl        = $('statusIn');
 const statusBoardEl     = $('statusBoard');
 const stationStatusMeta = $('stationStatusMeta');
 
+// 정류장 보드(BIS) 요소
+const boardHead    = $('boardHead');
+const boardDir     = $('boardDir');
+const boardList    = $('boardList');
+const boardRefresh = $('boardRefresh');
+const searchCountWrap = $('searchCount-wrap');
+
 // 노선 상세 바텀시트 요소 — 노선 클릭 시 표시되는 패널/배경/핸들/즐겨찾기 버튼
 const sheetEl         = $('routeSheet');
 const sheetBackdropEl = $('sheetBackdrop');
@@ -105,14 +121,11 @@ updateThemeUI();
     state.stations.find(function (s) { return s.ars_no === 'INS01'; }) ||
     state.stations.find(function (s) { return /^GJ/.test(s.ars_no); }) ||
     state.stations[0] || null;
-  if (state.activeStation) {
-    state.routeCards = await Data.loadRoutesForStation(
-      state.activeStation.ars_no, state.activeStation.station_name);
-  }
   renderFavs();
   renderStationContext();
   refreshStationStatus();
   renderSearchResults();
+  if (state.activeStation) { loadBoard(); startBoardTimer(); }
 })();
 
 // =============================================================
@@ -126,7 +139,12 @@ tabsEl.addEventListener('click', (e) => {
   state.tab = btn.dataset.tab;
   tabsEl.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === btn));
   panels.forEach((p) => p.classList.toggle('active', p.dataset.panel === state.tab));
+  // 보드 타이머는 검색 탭 + 정류장 선택 중에만
+  if (state.tab === 'search' && state.activeStation) { loadBoard(); startBoardTimer(); }
+  else stopBoardTimer();
 });
+
+boardRefresh.addEventListener('click', loadBoard);
 
 // =============================================================
 // 검색
@@ -148,31 +166,93 @@ stationCtxBtn.addEventListener('click', () => {
   state.routeCards = [];
   state.query = '';
   searchInput.value = '';
+  stopBoardTimer();
+  boardHead.hidden = true;
+  boardList.innerHTML = '';
   renderStationContext();
   refreshStationStatus();
   renderSearchResults();
 });
 
-// 검색 탭 렌더: activeStation 있으면 노선 카드, 없으면 정류장 목록
+// 검색 탭 렌더: activeStation 있으면 정류장 보드(BIS), 없으면 정류장 목록
 function renderSearchResults() {
+  if (searchCountWrap) searchCountWrap.hidden = true;
   if (state.activeStation) {
+    // 노선 추천 카드 대신 BIS 보드가 표시 담당 (보드는 loadBoard로 채워짐)
     stationListEl.innerHTML = '';
-    const q = state.query.trim().toLowerCase();
-    const routes = !q ? state.routeCards : state.routeCards.filter((r) =>
-      r.name.toLowerCase().includes(q) || r.to.toLowerCase().includes(q));
-    searchCountEl.textContent = routes.length;
-    routeListEl.innerHTML = routes.map(routeCardHTML).join('');
-    bindRouteCards(routeListEl);
+    routeListEl.innerHTML = '';
   } else {
     routeListEl.innerHTML = '';
+    boardHead.hidden = true;
+    boardList.innerHTML = '';
+    stopBoardTimer();
     const q = state.query.trim().toLowerCase();
     const list = !q ? state.stations : state.stations.filter((s) =>
       (s.station_name || '').toLowerCase().includes(q) ||
       (s.ars_no || '').toLowerCase().includes(q));
-    searchCountEl.textContent = list.length;
     stationListEl.innerHTML = list.map(stationItemHTML).join('');
     bindStationItems();
   }
+}
+
+// ---- 정류장 보드 (Kakao형 BIS) ----
+function arrivalText(a) {
+  if (!a) return '<span class="bd-noinfo">정보없음</span>';
+  if (a.imminent) return '<span class="bd-soon">곧 도착</span>';
+  return '<span class="bd-eta">' + a.min + '분<small>·' + a.stops + '정거장</small></span>';
+}
+
+function boardRowHTML(r, dirLabel) {
+  var color = KIND_COLOR[r.kindLabel] || '#64748b';
+  return '<div class="bd-row" role="button" tabindex="0" data-line="' + r.lineId + '">' +
+    '<div class="bd-left">' +
+      '<span class="bd-badge" style="background:' + color + '">' + esc(r.kindLabel) + '</span>' +
+      '<span class="bd-name">' + esc(r.lineName) + '</span>' +
+      (r.arrival && r.arrival.low ? '<span class="bd-low">저상</span>' : '') +
+      '<div class="bd-dir">' + esc(dirLabel) + '</div>' +
+    '</div>' +
+    '<div class="bd-right">' + arrivalText(r.arrival) + '</div>' +
+  '</div>';
+}
+
+async function loadBoard() {
+  var s = state.activeStation;
+  var busstopId = s ? state.busstopMap[s.ars_no] : null;
+  if (!s) { boardHead.hidden = true; boardList.innerHTML = ''; return; }
+  if (!busstopId) {
+    boardHead.hidden = true;
+    boardList.innerHTML = '<div class="bd-empty">🚍 셔틀 정류장 · 실시간 시내버스 도착 없음</div>';
+    return;
+  }
+  var board = await Data.loadStationBoard(busstopId);
+  // 정류장 전환 race 가드
+  if (!state.activeStation || state.busstopMap[state.activeStation.ars_no] !== busstopId) return;
+  boardHead.hidden = false;
+  boardDir.textContent = board.dirLabel;
+  if (!board.routes.length) {
+    boardList.innerHTML = '<div class="bd-empty">경유 노선 정보가 없습니다</div>';
+    return;
+  }
+  boardList.innerHTML = board.routes.map(function (r) {
+    return boardRowHTML(r, board.dirLabel);
+  }).join('');
+  bindBoardRows();
+}
+
+function bindBoardRows() {
+  boardList.querySelectorAll('.bd-row').forEach(function (el) {
+    el.addEventListener('click', function () {
+      if (typeof openLineDetail === 'function') openLineDetail(Number(el.dataset.line));
+    });
+  });
+}
+
+function startBoardTimer() {
+  stopBoardTimer();
+  state.boardTimer = setInterval(loadBoard, 30000);
+}
+function stopBoardTimer() {
+  if (state.boardTimer) { clearInterval(state.boardTimer); state.boardTimer = null; }
 }
 
 // 정류장 컨텍스트 칩 표시/숨김
@@ -254,10 +334,9 @@ function bindStationItems() {
       searchInput.value = '';
       renderStationContext();
       refreshStationStatus();
-      const cards = await Data.loadRoutesForStation(s.ars_no, s.station_name);
-      if (!state.activeStation || state.activeStation.ars_no !== s.ars_no) return; // 경쟁 가드
-      state.routeCards = cards;
-      renderSearchResults();
+      renderSearchResults();   // 정류장 목록 비우고 보드 영역 노출
+      loadBoard();
+      startBoardTimer();
     });
   });
 }
