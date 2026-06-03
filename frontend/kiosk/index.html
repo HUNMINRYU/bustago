@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUSTAGO 키오스크</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="kiosk-shell">
+    <section class="status-panel">
+      <div class="brand">
+        <span>광주대학교</span>
+        <b>BUSTAGO</b>
+      </div>
+      <div class="station-switcher" id="stationSwitcher"></div>
+
+      <div class="metric-primary">
+        <span class="metric-label" id="activeStationName">광주대 인성관</span>
+        <span class="metric-sub">현재 대기 인원</span>
+        <strong id="waitingCount">—</strong>
+        <span class="metric-meta" id="statusMeta">데이터 확인 중</span>
+      </div>
+
+      <div class="metric-row">
+        <div>
+          <span>진입</span>
+          <b id="inCount">—</b>
+        </div>
+        <div>
+          <span>탑승</span>
+          <b id="boardCount">—</b>
+        </div>
+        <div>
+          <span>혼잡도</span>
+          <b id="congestionLabel">—</b>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="../shared/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
