@@ -20,8 +20,13 @@ stations_bp = Blueprint("stations", __name__)
 @limiter.limit("60 per minute")
 def list_stations():
     rows = fetchall(
-        "SELECT ars_no, station_name, latitude, longitude, gj_busstop_id "
-        "FROM stations ORDER BY station_name"
+        "SELECT ars_no, station_name, latitude, longitude, "
+        "CASE WHEN ars_no = 'GATE01' AND gj_busstop_id IS NULL THEN 1981 "
+        "ELSE gj_busstop_id END AS gj_busstop_id "
+        "FROM stations WHERE ars_no IN ('INS01', 'GATE01', 'DEMO01') "
+        "ORDER BY CASE ars_no "
+        "WHEN 'INS01' THEN 0 WHEN 'GATE01' THEN 1 WHEN 'DEMO01' THEN 2 ELSE 9 END, "
+        "station_name"
     )
     return jsonify({
         "status": "ok",

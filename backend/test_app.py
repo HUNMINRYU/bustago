@@ -23,6 +23,13 @@ def test_health_check(client):
     assert resp.status_code == 200
     assert resp.json["status"] == "ok"
 
+def test_public_config_exposes_kakao_key_field(client):
+    """프론트 공개 설정에 kakao_map_app_key 필드가 포함됨 (빈 값이라도 키 존재)"""
+    resp = client.get("/api/public-config")
+    assert resp.status_code == 200
+    assert resp.json["status"] == "ok"
+    assert "kakao_map_app_key" in resp.json["data"]
+
 def test_predict_endpoint_missing_args(client):
     """필수 파라미터 누락 시 400 에러 확인"""
     resp = client.get("/api/predict")
@@ -113,6 +120,21 @@ def test_route_recommend_bad_hour(client):
 # 진단 §6 P1 반영 (2026-05-16): 기존 "200 또는 502 OK" 테스트는 네트워크 없을 때
 # 그냥 통과하여 검증력이 없었음. 아래 mock 테스트로 성공/실패 케이스를 분리해
 # 결정론적으로 검증한다. 통합(실 네트워크) 테스트는 옵션 마커로 분리.
+
+
+def test_stations_endpoint_returns_operational_gwangju_stations_only(client):
+    """학생/대시보드 UI에는 서울 샘플·원시 BIS 정류장 대신 운영 정류장만 노출."""
+    resp = client.get("/api/stations")
+    assert resp.status_code == 200
+    rows = resp.json["data"]
+    station_ids = [row["ars_no"] for row in rows]
+
+    assert station_ids == ["INS01", "GATE01", "DEMO01"]
+    assert "22011" not in station_ids
+    assert not any(sid.startswith("GJ") for sid in station_ids)
+
+    gate = next(row for row in rows if row["ars_no"] == "GATE01")
+    assert gate["gj_busstop_id"] == 1981
 
 
 @pytest.mark.network

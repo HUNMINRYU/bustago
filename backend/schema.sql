@@ -35,18 +35,10 @@ CREATE TABLE IF NOT EXISTS crowd_counts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 초기 데이터: 샘플 정류장 (서울 — ML 학습 기준)
-INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
-('22011', '지하철2호선강남역', 37.4979502, 127.0276368),
-('22012', '강남역12번출구', 37.4985440, 127.0285530),
-('23115', '서울역버스환승센터', 37.5546788, 126.9706069),
-('21148', '광화문광장앞', 37.5713680, 126.9774430),
-('22341', '잠실역', 37.5133890, 127.1001510);
-
 -- 광주대학교 정류장 (셔틀 + 시내버스)
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
 ('INS01',  '광주대 인성관 (셔틀)',    35.1377000, 126.8930000, NULL),
-('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000, NULL);
+('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000, 1981);
 
 -- 광주 BIS 실제 정류장 (captest/bus_server.py에서 확인, gj_bis arriveInfo 호출용)
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
