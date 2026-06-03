@@ -13,8 +13,9 @@ var STATIONS = {};
 // Demo fallback data
 var DEMO_HOURLY = [0, 0, 0, 0, 0, 0, 1, 2, 3, 2, 1, 1, 1, 1, 1, 1, 2, 3, 3, 2, 1, 1, 0, 0];
 var DEMO_STATS = [
-  { id: 'GATE01', name: '광주대 정문 (시내버스)', avgCongestion: 2.1, fullCount: 7, peakHour: '08시', currentLevel: 2 },
-  { id: 'INS01', name: '광주대 인성관 (셔틀)', avgCongestion: 1.6, fullCount: 4, peakHour: '17시', currentLevel: 1 }
+  { id: 'INS01',  name: '광주대 인성관 (셔틀)',         avgCongestion: 1.6, fullCount: 4, peakHour: '17시', currentLevel: 1 },
+  { id: 'GJ3229', name: '광주대 금호아파트방면 (3229)', avgCongestion: 1.9, fullCount: 5, peakHour: '08시', currentLevel: 1 },
+  { id: 'GJ3230', name: '광주대 구암방면 (3230)',       avgCongestion: 2.1, fullCount: 7, peakHour: '08시', currentLevel: 2 }
 ];
 
 var congestionChart = null;
@@ -425,7 +426,7 @@ function initMap() {
     return;
   }
 
-  leafletMap = L.map('station-map').setView([35.1378, 126.8942], 16);
+  leafletMap = L.map('station-map').setView([35.1065, 126.8966], 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(leafletMap);

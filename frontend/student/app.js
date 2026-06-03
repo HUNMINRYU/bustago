@@ -103,7 +103,7 @@ updateThemeUI();
   // 기본 정류장: INS01 → 첫 광주 → 첫 번째
   state.activeStation =
     state.stations.find(function (s) { return s.ars_no === 'INS01'; }) ||
-    state.stations.find(function (s) { return /^(GATE|GJ)/.test(s.ars_no); }) ||
+    state.stations.find(function (s) { return /^GJ/.test(s.ars_no); }) ||
     state.stations[0] || null;
   if (state.activeStation) {
     state.routeCards = await Data.loadRoutesForStation(

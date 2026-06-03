@@ -36,19 +36,17 @@ CREATE TABLE IF NOT EXISTS crowd_counts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 광주대학교 정류장 (셔틀 + 시내버스)
+-- 인성관 셔틀 + 정문 양방향 시내버스. 실측 좌표 (2026-06-04).
+-- GATE01(정문 단일)을 실제 BIS 양방향 정류소 GJ3229(금호아파트방면)·GJ3230(구암방면)으로 분리.
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
-('INS01',  '광주대 인성관 (셔틀)',    35.1377000, 126.8930000, NULL),
-('GATE01', '광주대 정문 (시내버스)', 35.1380000, 126.8955000, 1981);
+('INS01',  '광주대 인성관 (셔틀)',         35.1058481, 126.8963590, NULL),
+('GJ3229', '광주대 금호아파트방면 (3229)', 35.1071491, 126.8972787, 80),
+('GJ3230', '광주대 구암방면 (3230)',       35.1072390, 126.8970373, 1981),
+('GJ3228', '광주대입구 (3228)',            35.1370000, 126.8940000, 3219);
 
--- 광주 BIS 실제 정류장 (captest/bus_server.py에서 확인, gj_bis arriveInfo 호출용)
-INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude, gj_busstop_id) VALUES
-('GJ3230', '광주대 (3230)', 35.1380000, 126.8956000, 1981),
-('GJ3229', '광주대 (3229)', 35.1378000, 126.8954000, 80),
-('GJ3228', '광주대입구 (3228)', 35.1370000, 126.8940000, 3219);
-
--- 시연용 정류장 (광주대 좌표와 동일 — 지도 동일점에 찍힘)
+-- 시연용 정류장 (실측 좌표)
 INSERT IGNORE INTO stations (ars_no, station_name, latitude, longitude) VALUES
-('DEMO01', '시연용 정류장 (광주대)', 35.1378, 126.8942);
+('DEMO01', '시연용 정류장 (광주대)', 35.1056983, 126.8950896);
 
 -- 노선 테이블 (route-recommend API용)
 CREATE TABLE IF NOT EXISTS routes (
@@ -63,11 +61,11 @@ CREATE TABLE IF NOT EXISTS routes (
 
 INSERT OR IGNORE INTO routes
     (route_no, route_name, start_station_id, end_stations, route_count, is_shuttle) VALUES
-('419',     '419번 (광주역행)', 'GATE01', '["광주역","충장로","금남로"]', 8, 0),
-('518',     '518번 (금남로행)', 'GATE01', '["금남로","충장로","광주대입구"]', 7, 0),
+('419',     '419번 (광주역행)', 'GJ3230', '["광주역","충장로","금남로"]', 8, 0),
+('518',     '518번 (금남로행)', 'GJ3230', '["금남로","충장로","광주대입구"]', 7, 0),
 ('SHUTTLE1','셔틀 1호차', 'INS01', '["정문"]', 2, 1),
 ('SHUTTLE2','셔틀 2호차', 'INS01', '["정문"]', 2, 1),
-('SHUTTLE3','셔틀 3호차', 'GATE01', '["인성관"]', 2, 1),
-('SHUTTLE4','셔틀 4호차', 'GATE01', '["인성관"]', 2, 1),
+('SHUTTLE3','셔틀 3호차', 'GJ3229', '["인성관"]', 2, 1),
+('SHUTTLE4','셔틀 4호차', 'GJ3229', '["인성관"]', 2, 1),
 ('SHUTTLE5','셔틀 5호차', 'INS01', '["정문"]', 2, 1),
 ('SHUTTLE6','셔틀 6호차', 'INS01', '["정문"]', 2, 1);

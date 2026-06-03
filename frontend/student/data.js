@@ -16,7 +16,7 @@ function makeFavId(stationId, routeName) {
 
 function isOperationalStation(station) {
   var id = station && station.ars_no;
-  return id === 'INS01' || id === 'GATE01' || id === 'DEMO01';
+  return id === 'INS01' || id === 'DEMO01' || /^GJ/.test(id || '');
 }
 
 // 버스 유형 추론: 도착항목 LOW_BUS 우선, 다음 노선명 패턴, 기본 normal
@@ -56,22 +56,15 @@ function mapRoutesToCards(resp, stationId, stationName) {
 // stations 응답 → { stations(광주 우선 정렬), busstopMap }
 function mapStations(data) {
   if (!Array.isArray(data)) return { stations: [], busstopMap: {} };
-  var gateBusstopId = null;
-  data.forEach(function (s) {
-    if (!gateBusstopId && /^GJ/.test(s.ars_no || '') && s.gj_busstop_id) {
-      gateBusstopId = s.gj_busstop_id;
-    }
-  });
   var stations = data.filter(isOperationalStation).slice().sort(function (a, b) {
-    var aGJ = /^(INS|GATE|GJ)/.test(a.ars_no) ? 0 : 1;
-    var bGJ = /^(INS|GATE|GJ)/.test(b.ars_no) ? 0 : 1;
+    var aGJ = /^(INS|GJ)/.test(a.ars_no) ? 0 : 1;
+    var bGJ = /^(INS|GJ)/.test(b.ars_no) ? 0 : 1;
     return aGJ - bGJ;
   });
   var busstopMap = {};
   stations.forEach(function (s) {
     if (s.gj_busstop_id) busstopMap[s.ars_no] = s.gj_busstop_id;
   });
-  if (!busstopMap.GATE01 && gateBusstopId) busstopMap.GATE01 = gateBusstopId;
   return { stations: stations, busstopMap: busstopMap };
 }
 

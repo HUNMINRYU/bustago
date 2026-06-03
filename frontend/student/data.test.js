@@ -45,16 +45,21 @@ test('mapStations: 광주 우선 정렬 + busstop 맵', () => {
   assert.strictEqual(r.busstopMap['INS01'], 1981);
 });
 
-test('mapStations: 서울 샘플과 원시 GJ 정류장을 학생 목록에서 제외하고 GATE01 busstop fallback', () => {
+test('mapStations: 서울 샘플 제외 + GJ 양방향 정류장 포함 + 각 정류장 자체 busstop_id', () => {
   const data = [
     { ars_no: '22011', station_name: '지하철2호선강남역', gj_busstop_id: null },
-    { ars_no: 'GJ3230', station_name: '광주대 (3230)', gj_busstop_id: 1981 },
-    { ars_no: 'GATE01', station_name: '광주대 정문', gj_busstop_id: null },
+    { ars_no: 'INS01', station_name: '광주대 인성관', gj_busstop_id: null },
+    { ars_no: 'GJ3229', station_name: '광주대 금호아파트방면', gj_busstop_id: 80 },
+    { ars_no: 'GJ3230', station_name: '광주대 구암방면', gj_busstop_id: 1981 },
     { ars_no: 'DEMO01', station_name: '시연용 정류장', gj_busstop_id: null },
   ];
   const r = D.mapStations(data);
-  assert.deepStrictEqual(r.stations.map((s) => s.ars_no), ['GATE01', 'DEMO01']);
-  assert.strictEqual(r.busstopMap.GATE01, 1981);
+  // 서울(22011) 제외, 나머지 4개 유지
+  assert.deepStrictEqual(r.stations.map((s) => s.ars_no).sort(),
+    ['DEMO01', 'GJ3229', 'GJ3230', 'INS01']);
+  // busstopMap은 각 정류장 자체 gj_busstop_id (GATE01 fallback 제거됨)
+  assert.strictEqual(r.busstopMap.GJ3230, 1981);
+  assert.strictEqual(r.busstopMap.GJ3229, 80);
 });
 
 test('mapArrivalsForRoute: 노선명 매칭 + 분 오름차순 + 6개 제한', () => {

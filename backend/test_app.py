@@ -86,9 +86,9 @@ def test_crowd_count_get_no_data(client):
 
 # --- Route Recommend Tests ---
 
-def test_route_recommend_gate01_morning(client):
-    """GET /api/route-recommend 정문 오전 추천 노선 확인"""
-    resp = client.get("/api/route-recommend?station_id=GATE01&hour=8")
+def test_route_recommend_gj3230_morning(client):
+    """GET /api/route-recommend 구암방면(GJ3230) 오전 추천 노선 확인"""
+    resp = client.get("/api/route-recommend?station_id=GJ3230&hour=8")
     assert resp.status_code == 200
     routes = resp.json["data"]["routes"]
     assert isinstance(routes, list)
@@ -104,7 +104,7 @@ def test_route_recommend_bad_station(client):
 
 def test_route_recommend_bad_hour(client):
     """GET /api/route-recommend hour 오류 시 400 확인"""
-    resp = client.get("/api/route-recommend?station_id=GATE01&hour=99")
+    resp = client.get("/api/route-recommend?station_id=GJ3230&hour=99")
     assert resp.status_code == 400
 
 
@@ -122,12 +122,14 @@ def test_stations_endpoint_returns_operational_gwangju_stations_only(client):
     rows = resp.json["data"]
     station_ids = [row["ars_no"] for row in rows]
 
-    assert station_ids == ["INS01", "GATE01", "DEMO01"]
+    assert station_ids == ["INS01", "GJ3229", "GJ3230", "DEMO01"]
     assert "22011" not in station_ids
-    assert not any(sid.startswith("GJ") for sid in station_ids)
 
-    gate = next(row for row in rows if row["ars_no"] == "GATE01")
-    assert gate["gj_busstop_id"] == 1981
+    # 구암방면(GJ3230)은 BIS busstop 1981, 금호아파트방면(GJ3229)은 80
+    gj3230 = next(row for row in rows if row["ars_no"] == "GJ3230")
+    assert gj3230["gj_busstop_id"] == 1981
+    gj3229 = next(row for row in rows if row["ars_no"] == "GJ3229")
+    assert gj3229["gj_busstop_id"] == 80
 
 
 @pytest.mark.network

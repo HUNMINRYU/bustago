@@ -13,21 +13,21 @@
 """
 
 GJ_ROUTES = [
-    # GATE01 (광주대 정문 — 시내버스 + 인성관 셔틀)
+    # GJ3230 (광주대 구암방면 — 시내버스), GJ3229 (광주대 금호아파트방면 — 셔틀)
     {"route_no": "419", "route_name": "419번 (광주역행)",
-     "start_station_id": "GATE01",
+     "start_station_id": "GJ3230",
      "end_stations": ["광주역", "충장로", "금남로"],
      "route_count": 8, "is_shuttle": 0},
     {"route_no": "518", "route_name": "518번 (금남로행)",
-     "start_station_id": "GATE01",
+     "start_station_id": "GJ3230",
      "end_stations": ["금남로", "충장로", "광주대입구"],
      "route_count": 7, "is_shuttle": 0},
     {"route_no": "SHUTTLE3", "route_name": "셔틀 3호차",
-     "start_station_id": "GATE01",
+     "start_station_id": "GJ3229",
      "end_stations": ["인성관"],
      "route_count": 2, "is_shuttle": 1},
     {"route_no": "SHUTTLE4", "route_name": "셔틀 4호차",
-     "start_station_id": "GATE01",
+     "start_station_id": "GJ3229",
      "end_stations": ["인성관"],
      "route_count": 2, "is_shuttle": 1},
     # INS01 (광주대 인성관 — 셔틀 4대)
