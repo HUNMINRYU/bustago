@@ -93,6 +93,16 @@ const boardList    = $('boardList');
 const boardRefresh = $('boardRefresh');
 const searchCountWrap = $('searchCount-wrap');
 
+// 노선 상세 시트(BIS 경유정류소) 요소
+const lineSheet    = $('lineSheet');
+const lineBackdrop = $('lineBackdrop');
+const lineKind     = $('lineKind');
+const lineName     = $('lineName');
+const lineDir      = $('lineDir');
+const lineMeta     = $('lineMeta');
+const lineRun      = $('lineRun');
+const lineStops    = $('lineStops');
+
 // 노선 상세 바텀시트 요소 — 노선 클릭 시 표시되는 패널/배경/핸들/즐겨찾기 버튼
 const sheetEl         = $('routeSheet');
 const sheetBackdropEl = $('sheetBackdrop');
@@ -145,6 +155,9 @@ tabsEl.addEventListener('click', (e) => {
 });
 
 boardRefresh.addEventListener('click', loadBoard);
+
+lineBackdrop.addEventListener('click', closeLineDetail);
+$('lineHandle').addEventListener('click', closeLineDetail);
 
 // =============================================================
 // 검색
@@ -253,6 +266,64 @@ function startBoardTimer() {
 }
 function stopBoardTimer() {
   if (state.boardTimer) { clearInterval(state.boardTimer); state.boardTimer = null; }
+}
+
+// ---- 노선 상세 (BIS 경유정류소 + 현재 위치) ----
+async function openLineDetail(lineId) {
+  lineSheet.hidden = false;
+  lineBackdrop.hidden = false;
+  state.lineSheetOpen = true;
+  lineStops.innerHTML = '<li class="ls-loading">불러오는 중…</li>';
+  lineRun.textContent = '';
+  var detail = await Data.loadLineStations(lineId, MY_BUSSTOP_IDS);
+  if (!state.lineSheetOpen) return;   // 그 사이 닫힘
+  if (!detail) {
+    lineStops.innerHTML = '<li class="ls-loading">노선 정보를 불러오지 못했습니다</li>';
+    return;
+  }
+  state.curLine = detail;
+  renderLineDetail(detail);
+  if (typeof startPosTimer === 'function') startPosTimer();   // Task 8
+}
+
+function renderLineDetail(d) {
+  lineKind.textContent = d.kindLabel;
+  lineKind.style.background = KIND_COLOR[d.kindLabel] || '#64748b';
+  lineName.textContent = d.lineName;
+  lineDir.textContent = (d.dirDown && d.dirUp) ? (d.dirDown + ' ↔ ' + d.dirUp) : '';
+  var parts = [];
+  if (d.firstRun) parts.push('첫차 ' + d.firstRun);
+  if (d.lastRun) parts.push('막차 ' + d.lastRun);
+  if (d.interval) parts.push('배차 ' + d.interval + '분');
+  lineMeta.textContent = parts.join(' · ');
+  if (!d.stops.length) {
+    lineStops.innerHTML = '<li class="ls-loading">경유 정류소 정보를 불러오지 못했습니다 (잠시 후 다시)</li>';
+    return;
+  }
+  renderLineStops(d.stops, []);       // 위치는 Task 8에서 갱신
+}
+
+// positions: 현재 차량이 있는 seq 배열 (Task 8)
+function renderLineStops(stops, positions) {
+  var posSet = {};
+  (positions || []).forEach(function (sq) { posSet[sq] = true; });
+  lineStops.innerHTML = stops.map(function (s) {
+    return '<li class="ls-stop' + (s.isMine ? ' ls-mine' : '') + '">' +
+      '<span class="ls-dot' + (posSet[s.seq] ? ' ls-bus' : '') + '">' +
+        (posSet[s.seq] ? '🚌' : '') + '</span>' +
+      '<span class="ls-body"><span class="ls-name">' + esc(s.name) +
+        (s.isMine ? ' <b>(현위치)</b>' : '') + '</span>' +
+        '<span class="ls-ars">' + esc(s.arsId) + '</span></span>' +
+    '</li>';
+  }).join('');
+}
+
+function closeLineDetail() {
+  lineSheet.hidden = true;
+  lineBackdrop.hidden = true;
+  state.lineSheetOpen = false;
+  state.curLine = null;
+  if (typeof stopPosTimer === 'function') stopPosTimer();   // Task 8
 }
 
 // 정류장 컨텍스트 칩 표시/숨김

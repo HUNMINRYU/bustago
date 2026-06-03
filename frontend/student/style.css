@@ -532,3 +532,29 @@ input { font-family: inherit; }
 .bd-soon { font-size:14px; font-weight:800; color:#ef4444; }
 .bd-noinfo { font-size:13px; color:var(--text-secondary); }
 .bd-empty { padding:24px 8px; text-align:center; color:var(--text-secondary); font-size:14px; }
+
+/* 노선 상세 시트 (BIS 경유정류소) */
+.line-sheet { position:fixed; left:0; right:0; bottom:0; max-height:85vh; overflow-y:auto;
+  background:var(--card-bg); border-radius:18px 18px 0 0; z-index:50; padding:8px 16px 28px;
+  box-shadow:0 -4px 24px rgba(0,0,0,.18); }
+.line-sheet .sheet-handle { width:40px; height:4px; border-radius:2px; background:#cbd5e1;
+  margin:6px auto 12px; }
+.line-head { display:flex; align-items:center; gap:8px; }
+.line-name { font-size:20px; font-weight:800; color:var(--text-primary); }
+.line-dir { font-size:13px; color:var(--text-secondary); margin-top:4px; }
+.line-meta { font-size:12px; color:var(--text-secondary); margin:4px 0 6px; }
+.line-run { font-size:13px; color:var(--text-secondary); min-height:18px; }
+.line-stops { list-style:none; margin:10px 0 0; padding:0; }
+.ls-stop { display:flex; align-items:flex-start; gap:10px; }
+.ls-dot { width:18px; display:flex; justify-content:center; align-items:center;
+  font-size:13px; color:#cbd5e1; padding-top:10px; }
+.ls-dot::before { content:''; width:9px; height:9px; border-radius:50%;
+  background:#cbd5e1; border:2px solid var(--card-bg); }
+.ls-dot.ls-bus::before { content:none; }
+.ls-body { display:flex; flex-direction:column; padding:8px 0;
+  border-bottom:1px solid var(--search-input-border); flex:1; }
+.ls-name { font-size:14px; color:var(--text-primary); }
+.ls-ars { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+.ls-mine .ls-name { font-weight:800; color:#2563eb; }
+.ls-mine .ls-dot::before { background:#2563eb; width:13px; height:13px; }
+.ls-loading { padding:20px; text-align:center; color:var(--text-secondary); }
