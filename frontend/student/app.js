@@ -436,6 +436,7 @@ function renderSheet() {
 async function loadSheetLive(r) {
   // 시간대별 예측 (정류장 단위)
   const fc = await Data.loadForecast(r.stationId);
+  if (!state.sheetOpen || !state.sheetRoute || state.sheetRoute.id !== r.id) return;
   const nowIdx = 0; // 첫 막대가 현재 시각
   $('sheetForecast').innerHTML = fc.levels.map((lvl, i) => {
     const info = CONGESTION[lvl];
@@ -456,6 +457,7 @@ async function refreshSheetArrival(r) {
   if (!state.sheetOpen || !state.sheetRoute || state.sheetRoute.id !== r.id) return;
   const busstopId = state.busstopMap[r.stationId];
   const res = await Data.loadArrivalAndRunning(busstopId, r.name);
+  if (!state.sheetOpen || !state.sheetRoute || state.sheetRoute.id !== r.id) return;
 
   // 운행 대수 칩
   const pill = $('sheetRunning');
