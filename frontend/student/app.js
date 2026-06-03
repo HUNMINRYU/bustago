@@ -238,7 +238,7 @@ function esc(s) {
 // 주의: route-card는 div + role="button"으로 사용 — 내부에 별(span) 버튼을 둘 수 있도록 함
 //       (button 중첩 시 브라우저가 안쪽 버튼을 밖으로 빼내는 문제 회피)
 function routeCardHTML(r) {
-  const c = CONGESTION[r.level];
+  const c = CONGESTION[r.level] || CONGESTION[0];
   const t = BUS_TYPE[r.type];
   const isFav = state.favs.has(r.id);
   return `
@@ -402,7 +402,7 @@ function attachDragClose(panel, handle, onClose) {
 function renderSheet() {
   const r = state.sheetRoute;
   if (!r) return;
-  const c = CONGESTION[r.level];
+  const c = CONGESTION[r.level] || CONGESTION[0];
   const t = BUS_TYPE[r.type];
 
   $('sheetRouteName').textContent = r.name;
@@ -439,7 +439,7 @@ async function loadSheetLive(r) {
   if (!state.sheetOpen || !state.sheetRoute || state.sheetRoute.id !== r.id) return;
   const nowIdx = 0; // 첫 막대가 현재 시각
   $('sheetForecast').innerHTML = fc.levels.map((lvl, i) => {
-    const info = CONGESTION[lvl];
+    const info = CONGESTION[lvl] || CONGESTION[0];
     const h = ((lvl + 1) / 4) * 100;
     const isNow = i === nowIdx;
     return `<div class="fc-col"><div class="fc-bar ${isNow ? 'current' : ''}" ` +
