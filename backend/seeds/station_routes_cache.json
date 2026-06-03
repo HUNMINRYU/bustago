@@ -1,0 +1,52 @@
+{
+  "80": {
+    "dir_label": "금호타운아파트 방향",
+    "routes": [
+      {
+        "line_id": 114,
+        "line_name": "수완03",
+        "line_kind": 1
+      },
+      {
+        "line_id": 24,
+        "line_name": "송암47",
+        "line_kind": 2
+      },
+      {
+        "line_id": 74,
+        "line_name": "진월177",
+        "line_kind": 3
+      },
+      {
+        "line_id": 48,
+        "line_name": "진월77",
+        "line_kind": 3
+      }
+    ]
+  },
+  "1981": {
+    "dir_label": "구암 방향",
+    "routes": [
+      {
+        "line_id": 114,
+        "line_name": "수완03",
+        "line_kind": 1
+      },
+      {
+        "line_id": 24,
+        "line_name": "송암47",
+        "line_kind": 2
+      },
+      {
+        "line_id": 74,
+        "line_name": "진월177",
+        "line_kind": 3
+      },
+      {
+        "line_id": 48,
+        "line_name": "진월77",
+        "line_kind": 3
+      }
+    ]
+  }
+}
