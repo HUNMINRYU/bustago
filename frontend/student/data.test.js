@@ -57,6 +57,15 @@ test('mapArrivalsForRoute: 노선명 매칭 + 분 오름차순 + 6개 제한', (
   assert.strictEqual(r[0].low, true);
   assert.strictEqual(r[0].lineId, 9);
 });
+test('mapArrivalsForRoute: 7개 이상 → 6개로 제한 + 가장 가까운 것 먼저', () => {
+  const mins = [9, 8, 7, 6, 5, 4, 3, 2];
+  const items = mins.map(function (m) {
+    return { SHORT_LINE_NAME: '송정51', REMAIN_MIN: String(m), REMAIN_STOP: '1', LOW_BUS: 0, DIR_END: '광주역', LINE_ID: 9 };
+  });
+  const r = D.mapArrivalsForRoute(items, '송정51');
+  assert.strictEqual(r.length, 6);
+  assert.strictEqual(r[0].min, 2); // 가장 가까운 것 먼저
+});
 
 test('mapPredictsToForecast: predict 결과 배열 → 막대 데이터', () => {
   const preds = [
@@ -67,4 +76,7 @@ test('mapPredictsToForecast: predict 결과 배열 → 막대 데이터', () => 
   assert.strictEqual(r.levels[0], 1);
   assert.strictEqual(r.levels[2], 3);
   assert.ok(typeof r.levels[1] === 'number'); // null은 데모값으로 채움
+});
+test('mapPredictsToForecast: null 입력 → 빈 결과 (안전 degradation)', () => {
+  assert.deepStrictEqual(D.mapPredictsToForecast(null, 8), { hours: [], levels: [] });
 });

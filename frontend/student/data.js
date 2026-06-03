@@ -80,6 +80,7 @@ function mapArrivalsForRoute(items, routeName) {
 
 // predict 결과 배열(6개) → 막대 그래프 데이터 (null은 데모값)
 function mapPredictsToForecast(preds, startHour) {
+  if (!Array.isArray(preds)) preds = [];
   var hours = [], levels = [];
   for (var i = 0; i < preds.length; i++) {
     var h = (startHour + i) % 24;
