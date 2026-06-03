@@ -19,8 +19,8 @@ var DEMO_STATS = [
 
 var congestionChart = null;
 var doughnutChart = null;
-var leafletMap = null;
-var mapMarkers = [];
+var stationMap = null;
+var pendingMapStats = null;
 var refreshInterval = null;
 var REFRESH_MS = 60000; // 60 seconds
 var CROWD_REFRESH_MS = 2000;
@@ -412,57 +412,56 @@ function updateDoughnutChart(hourlyData) {
   doughnutChart.update();
 }
 
-// ==================== Leaflet.js Map ====================
+// ==================== Kakao Map ====================
 
 function initMap() {
   var mapEl = document.getElementById('station-map');
   if (!mapEl) return;
 
-  if (typeof L === 'undefined') {
-    mapEl.innerHTML = '<p style="padding:20px;color:#757575;">Leaflet.js 로드 실패</p>';
+  pendingMapStats = DEMO_STATS;
+  if (!window.BustagoKakaoMap) {
+    mapEl.innerHTML = '<div class="btg-map-message">지도 모듈 로드 실패</div>';
     return;
   }
 
-  leafletMap = L.map('station-map').setView([35.1378, 126.8942], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(leafletMap);
-
-  updateMap(DEMO_STATS);
+  // 카카오 키는 .env(KAKAO_MAP_APP_KEY) → /api/public-config 로 받아 주입.
+  // 실패/빈 키면 어댑터가 안내 박스로 폴백 (화면 안 깨짐).
+  fetchAPI('/public-config').then(function (cfg) {
+    if (cfg && cfg.kakao_map_app_key) {
+      window.BUSTAGO_KAKAO_APP_KEY = cfg.kakao_map_app_key;
+    }
+    return window.BustagoKakaoMap.create('station-map', { variant: 'dashboard' });
+  }).then(function (map) {
+    stationMap = map;
+    updateMap(pendingMapStats || DEMO_STATS);
+    pendingMapStats = null;
+  });
 }
 
 function updateMap(statsRows) {
-  if (!leafletMap) return;
+  if (!stationMap) {
+    pendingMapStats = statsRows;
+    return;
+  }
 
-  // Clear existing markers
-  mapMarkers.forEach(function (m) { leafletMap.removeLayer(m); });
-  mapMarkers = [];
-
+  var markers = [];
   statsRows.forEach(function (stat) {
     var station = STATIONS[stat.id];
     if (!station) return;
 
-    var color = CONGESTION[Math.min(3, Math.max(0, stat.currentLevel))].color;
-    var icon = L.divIcon({
-      className: 'map-marker',
-      html: '<div style="width:24px;height:24px;background:' + color +
-        ';border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
+    var lvl = Math.min(3, Math.max(0, stat.currentLevel));
+    markers.push({
+      id: stat.id,
+      name: station.name,
+      lat: station.lat,
+      lng: station.lng,
+      level: lvl,
+      color: CONGESTION[lvl].color,
+      meta: '혼잡도: ' + CONGESTION[lvl].label + ' · 평균 ' + stat.avgCongestion.toFixed(1),
     });
-
-    var marker = L.marker([station.lat, station.lng], { icon: icon })
-      .addTo(leafletMap)
-      .bindPopup('<strong>' + station.name + '</strong><br>혼잡도: ' +
-        CONGESTION[Math.min(3, Math.max(0, stat.currentLevel))].label);
-    mapMarkers.push(marker);
   });
 
-  // Fit map bounds to show all markers
-  if (mapMarkers.length > 0) {
-    var group = L.featureGroup(mapMarkers);
-    leafletMap.fitBounds(group.getBounds().pad(0.15));
-  }
+  stationMap.setMarkers(markers);
 }
 
 // ==================== Stats Table ====================
