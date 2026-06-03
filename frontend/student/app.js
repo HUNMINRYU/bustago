@@ -323,7 +323,28 @@ function closeLineDetail() {
   lineBackdrop.hidden = true;
   state.lineSheetOpen = false;
   state.curLine = null;
-  if (typeof stopPosTimer === 'function') stopPosTimer();   // Task 8
+  stopPosTimer();
+}
+
+// ---- 현재 버스 위치 (P3) ----
+async function refreshBusPositions() {
+  var d = state.curLine;
+  if (!d || !state.lineSheetOpen) return;
+  var positions = await Data.loadBusPositions(d.lineId, d.stops);
+  if (!state.lineSheetOpen || !state.curLine || state.curLine.lineId !== d.lineId) return;
+  lineRun.textContent = positions.length
+    ? ('🚌 현재 운행 중 ' + positions.length + '대')
+    : '현재 운행중인 버스 없음';
+  if (d.stops.length) renderLineStops(d.stops, positions);
+}
+
+function startPosTimer() {
+  stopPosTimer();
+  refreshBusPositions();                       // 즉시 1회
+  state.posTimer = setInterval(refreshBusPositions, 20000);
+}
+function stopPosTimer() {
+  if (state.posTimer) { clearInterval(state.posTimer); state.posTimer = null; }
 }
 
 // 정류장 컨텍스트 칩 표시/숨김
