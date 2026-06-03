@@ -126,3 +126,43 @@ test('mapCrowdCount: crowd-count 응답을 정류장 현황 뷰모델로 변환'
     stale: false,
   });
 });
+
+test('mapStationBoard: 도착 매칭 + 정보없음(null) + 종류 라벨', () => {
+  const r = D.mapStationBoard({
+    dir_label: '구암 방향',
+    routes: [
+      { line_id: 24, line_name: '송암47', kind_label: '간선',
+        arrival: { min: 3, stops: 2, low: false, imminent: false } },
+      { line_id: 99, line_name: '수완03', kind_label: '급행', arrival: null },
+    ],
+  });
+  assert.strictEqual(r.dirLabel, '구암 방향');
+  assert.strictEqual(r.routes[0].arrival.min, 3);
+  assert.strictEqual(r.routes[0].kindLabel, '간선');
+  assert.strictEqual(r.routes[1].arrival, null);
+});
+
+test('mapLineStations: SEQ 정류소 + 내 정류장 하이라이트', () => {
+  const r = D.mapLineStations({
+    line_id: 24, line_name: '송암47', kind_label: '간선',
+    first_run: '05:40', last_run: '22:30', interval: '15',
+    stops: [
+      { seq: 1, busstop_id: 1165, ars_id: '4311', name: '장등동', lat: 35.2, lng: 126.9 },
+      { seq: 2, busstop_id: 80, ars_id: '3229', name: '광주대', lat: 35.107, lng: 126.897 },
+    ],
+  }, [80, 1981]);
+  assert.strictEqual(r.kindLabel, '간선');
+  assert.strictEqual(r.stops[1].isMine, true);
+  assert.strictEqual(r.stops[0].isMine, false);
+});
+
+test('mapBusPositions: BUSSTOP_ID 매칭 → SEQ, 없으면 lat/lng 최근접', () => {
+  const stops = [
+    { seq: 1, busstopId: 1165, lat: 35.20, lng: 126.93 },
+    { seq: 2, busstopId: 80, lat: 35.107, lng: 126.897 },
+  ];
+  assert.deepStrictEqual(D.mapBusPositions([{ BUSSTOP_ID: 80 }], stops), [2]);
+  assert.deepStrictEqual(
+    D.mapBusPositions([{ LATITUDE: 35.108, LONGITUDE: 126.898 }], stops), [2]);
+  assert.deepStrictEqual(D.mapBusPositions([{}], stops), []);
+});

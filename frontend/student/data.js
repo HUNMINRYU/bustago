@@ -95,6 +95,72 @@ function mapArrivalsForRoute(items, routeName) {
     .slice(0, 6);
 }
 
+// station-board 응답 → 보드 뷰모델 (백엔드가 대부분 정형화; 패스스루 + 안전 가드)
+function mapStationBoard(data) {
+  if (!data || !Array.isArray(data.routes)) return { dirLabel: '', routes: [] };
+  return {
+    dirLabel: data.dir_label || '',
+    routes: data.routes.map(function (r) {
+      var a = r.arrival;
+      return {
+        lineId: r.line_id,
+        lineName: r.line_name || '',
+        kindLabel: r.kind_label || '버스',
+        arrival: a ? { min: a.min, stops: a.stops, low: !!a.low, imminent: !!a.imminent } : null,
+      };
+    }),
+  };
+}
+
+// line-stations 응답 → 노선 상세 뷰모델. myBusstopIds(배열) 중 하나면 isMine=true.
+function mapLineStations(data, myBusstopIds) {
+  if (!data) return null;
+  var mine = {};
+  (myBusstopIds || []).forEach(function (id) { mine[Number(id)] = true; });
+  var stops = (Array.isArray(data.stops) ? data.stops : []).map(function (s) {
+    return {
+      seq: s.seq, busstopId: s.busstop_id, arsId: s.ars_id || '',
+      name: s.name || '', lat: s.lat, lng: s.lng,
+      isMine: !!mine[Number(s.busstop_id)],
+    };
+  });
+  return {
+    lineId: data.line_id, lineName: data.line_name || '', kindLabel: data.kind_label || '버스',
+    dirUp: data.dir_up || '', dirDown: data.dir_down || '',
+    firstRun: data.first_run || '', lastRun: data.last_run || '', interval: data.interval || '',
+    stops: stops,
+  };
+}
+
+// bus_location items → 경유정류소 stops 위의 SEQ 위치 배열. 필드 미확정 → 방어적.
+// 1순위 BUSSTOP_ID 매칭, 2순위 BUSSTOP_SEQ, 3순위 lat/lng 최근접. 못 찾으면 제외.
+function mapBusPositions(items, stops) {
+  if (!Array.isArray(items) || !Array.isArray(stops) || !stops.length) return [];
+  var byBusstop = {};
+  stops.forEach(function (s) { byBusstop[Number(s.busstopId)] = s.seq; });
+  var positions = [];
+  items.forEach(function (it) {
+    var seq = null;
+    var bid = it.BUSSTOP_ID != null ? Number(it.BUSSTOP_ID) : null;
+    if (bid != null && byBusstop[bid] != null) {
+      seq = byBusstop[bid];
+    } else if (it.BUSSTOP_SEQ != null || it.SEQ != null) {
+      seq = Number(it.BUSSTOP_SEQ != null ? it.BUSSTOP_SEQ : it.SEQ);
+    } else if (it.LATITUDE != null && it.LONGITUDE != null) {
+      var best = null, bestD = Infinity;
+      var la = Number(it.LATITUDE), lo = Number(it.LONGITUDE);
+      stops.forEach(function (s) {
+        if (s.lat == null || s.lng == null) return;
+        var d = (s.lat - la) * (s.lat - la) + (s.lng - lo) * (s.lng - lo);
+        if (d < bestD) { bestD = d; best = s.seq; }
+      });
+      seq = best;
+    }
+    if (seq != null) positions.push(seq);
+  });
+  return positions;
+}
+
 // crowd-count 응답 → 정류장 현황 뷰모델. nowMs는 테스트에서 시간 고정용.
 function mapCrowdCount(data, nowMs) {
   if (!data) return null;
@@ -187,6 +253,26 @@ async function loadArrivalAndRunning(busstopId, routeName) {
   return { arrivals: arrivals, runningCount: runningCount };
 }
 
+// 정류장 보드: busstopId 없으면 빈 보드.
+async function loadStationBoard(busstopId) {
+  if (!busstopId) return { dirLabel: '', routes: [] };
+  var data = await fetchStationBoard(busstopId);   // shared/api.js
+  return mapStationBoard(data);
+}
+
+// 노선 상세: 경유정류소 + 메타. myBusstopIds로 내 정류장 하이라이트.
+async function loadLineStations(lineId, myBusstopIds) {
+  var data = await fetchLineStations(lineId);
+  return mapLineStations(data, myBusstopIds);
+}
+
+// 노선 현재 차량 위치 → stops 위 SEQ 배열.
+async function loadBusPositions(lineId, stops) {
+  var data = await fetchBusLocation(lineId);
+  var items = (data && data.items) ? data.items : [];
+  return mapBusPositions(items, stops);
+}
+
 // 브라우저 전역으로 노출 (app.js가 Data.* 로 호출)
 if (typeof window !== 'undefined') {
   window.Data = {
@@ -197,6 +283,10 @@ if (typeof window !== 'undefined') {
     loadStations: loadStations, loadRoutesForStation: loadRoutesForStation,
     loadForecast: loadForecast, loadStationStatus: loadStationStatus,
     loadArrivalAndRunning: loadArrivalAndRunning,
+    mapStationBoard: mapStationBoard, mapLineStations: mapLineStations,
+    mapBusPositions: mapBusPositions,
+    loadStationBoard: loadStationBoard, loadLineStations: loadLineStations,
+    loadBusPositions: loadBusPositions,
   };
 }
 
@@ -213,6 +303,9 @@ if (typeof module !== 'undefined' && module.exports) {
     mapArrivalsForRoute: mapArrivalsForRoute,
     mapPredictsToForecast: mapPredictsToForecast,
     mapCrowdCount: mapCrowdCount,
+    mapStationBoard: mapStationBoard,
+    mapLineStations: mapLineStations,
+    mapBusPositions: mapBusPositions,
     loadStations: typeof fetchStations !== 'undefined' ? loadStations : undefined,
     loadRoutesForStation: typeof fetchRouteRecommend !== 'undefined' ? loadRoutesForStation : undefined,
     loadForecast: typeof fetchPredict !== 'undefined' ? loadForecast : undefined,

@@ -80,3 +80,12 @@ async function fetchRecentEvents(stationId, limit) {
   return fetchAPI('/crowd-count/recent',
                   { station_id: stationId, limit: limit || 5 });
 }
+
+// 2026-06-04: Kakao형 정류장 보드 / 노선 상세
+async function fetchStationBoard(busstopId) {
+  return fetchAPI('/station-board/' + busstopId);
+}
+
+async function fetchLineStations(lineId) {
+  return fetchAPI('/line-stations/' + lineId);
+}
