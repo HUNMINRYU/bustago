@@ -92,6 +92,57 @@ function mapPredictsToForecast(preds, startHour) {
   return { hours: hours, levels: levels };
 }
 
+// =============================================================
+// async 페처 — shared/api.js 전역 함수를 호출 (브라우저 전용)
+// =============================================================
+
+// 정류장 목록 로드 (정렬됨) + busstopMap. 실패 시 빈 셋.
+async function loadStations() {
+  var data = await fetchStations();           // shared/api.js
+  return mapStations(data);
+}
+
+// 특정 정류장의 현재 시각 노선 카드. 실패 시 [].
+async function loadRoutesForStation(stationId, stationName) {
+  var now = new Date();
+  var hour = now.getHours();
+  var jsDay = now.getDay();
+  var weekday = jsDay === 0 ? 6 : jsDay - 1;   // 0=월
+  var resp = await fetchRouteRecommend(stationId, hour, weekday);
+  return mapRoutesToCards(resp, stationId, stationName);
+}
+
+// 노선 시트용 시간대별 예측(다음 6시간, 정류장 단위). 실패분은 데모값.
+async function loadForecast(stationId) {
+  var now = new Date();
+  var startHour = now.getHours();
+  var jsDay = now.getDay();
+  var weekday = jsDay === 0 ? 6 : jsDay - 1;
+  var promises = [];
+  for (var i = 0; i < 6; i++) {
+    promises.push(fetchPredict(stationId, (startHour + i) % 24, weekday));
+  }
+  var preds = await Promise.all(promises);
+  return mapPredictsToForecast(preds, startHour);
+}
+
+// 노선 시트용 도착 + 운행 대수. busstopId 없으면 빈 결과.
+// 반환: { arrivals:[...], runningCount:Number|null }
+async function loadArrivalAndRunning(busstopId, routeName) {
+  if (!busstopId) return { arrivals: [], runningCount: null };
+  var data = await fetchBusArrival(busstopId);
+  var items = (data && data.items) ? data.items : [];
+  var arrivals = mapArrivalsForRoute(items, routeName);
+
+  var runningCount = null;
+  var lineId = arrivals.length ? arrivals[0].lineId : null;
+  if (lineId != null) {
+    var loc = await fetchBusLocation(lineId);
+    if (loc && typeof loc.count === 'number') runningCount = loc.count;
+  }
+  return { arrivals: arrivals, runningCount: runningCount };
+}
+
 // Node 테스트용 export (브라우저에서는 무시됨)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -102,5 +153,9 @@ if (typeof module !== 'undefined' && module.exports) {
     mapStations: mapStations,
     mapArrivalsForRoute: mapArrivalsForRoute,
     mapPredictsToForecast: mapPredictsToForecast,
+    loadStations: typeof fetchStations !== 'undefined' ? loadStations : undefined,
+    loadRoutesForStation: typeof fetchRouteRecommend !== 'undefined' ? loadRoutesForStation : undefined,
+    loadForecast: typeof fetchPredict !== 'undefined' ? loadForecast : undefined,
+    loadArrivalAndRunning: typeof fetchBusArrival !== 'undefined' ? loadArrivalAndRunning : undefined,
   };
 }
