@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1976D2" />
+  <meta name="description" content="BUSTAGO - 버스 정류장 혼잡도 예측" />
+  <title>BUSTAGO - 버스 혼잡도 예측</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>" />
+</head>
+<body data-theme="light">
+
+  <!-- 상단 헤더: 항상 중앙 정렬, 다크모드 시 색상 토큰 전환에 사용됨 -->
+  <header class="app-header">
+    <div class="header-sub">버스 정류장 혼잡도 예측</div>
+    <div class="header-title">BUSTAGO</div>
+  </header>
+
+  <!-- 메뉴 탭: 즐겨찾기(기본 홈) / 노선 검색 / 더보기 — data-tab 값이 패널 전환 키로 사용됨 -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="fav">
+      <svg viewBox="0 0 24 24" class="tab-ico"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/></svg>
+      <span>즐겨찾기</span>
+    </button>
+    <button class="tab" data-tab="search">
+      <svg viewBox="0 0 24 24" class="tab-ico"><path d="M10 4a6 6 0 104.47 10.03l4.25 4.24 1.41-1.41-4.24-4.25A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z" fill="currentColor"/></svg>
+      <span>노선 검색</span>
+    </button>
+    <button class="tab" data-tab="more">
+      <svg viewBox="0 0 24 24" class="tab-ico"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
+      <span>더보기</span>
+    </button>
+  </nav>
+
+  <!-- 메인 콘텐츠: data-panel 속성으로 탭과 1:1 매핑됨 (.active 클래스가 표시 상태로 사용됨) -->
+  <main class="app-main">
+    <!-- 즐겨찾기 패널 — 기본 홈. 날씨 카드 + 즐겨찾기 노선 목록 또는 빈 상태로 구성됨 -->
+    <section class="tab-panel active" data-panel="fav">
+      <div class="weather-card card">
+        <div class="weather-left">
+          <span class="weather-ico">☀️</span>
+          <span class="weather-temp">22°C</span>
+        </div>
+        <div class="weather-right">
+          <div><div class="v">55%</div><div class="l">습도</div></div>
+          <div><div class="v">2m/s</div><div class="l">바람</div></div>
+          <div><div class="v">없음</div><div class="l">강수</div></div>
+        </div>
+      </div>
+      <div class="fav-list" id="favList"></div>
+      <div class="empty-state" id="favEmpty">
+        <div class="empty-ico">⭐</div>
+        <div class="empty-title">즐겨찾기한 노선이 없습니다</div>
+        <div class="empty-sub">노선을 추가해보세요!</div>
+      </div>
+    </section>
+
+    <!-- 노선 검색 패널 — 검색 입력 + 결과 카운트 + 노선 카드 목록. 카드는 app.js의 routeCardHTML()로 동적 생성됨 -->
+    <section class="tab-panel" data-panel="search">
+      <input type="text" class="search-input" id="searchInput" placeholder="노선번호 또는 목적지 검색" />
+      <div class="search-count">
+        <span>검색 결과</span>
+        <span><b id="searchCount">0</b>개 노선</span>
+      </div>
+      <div class="route-list" id="routeList"></div>
+    </section>
+
+    <!-- 더보기 패널 — 테마 토글 / 서비스 정보(인앱 시트) / 문의하기(외부 링크)로 구성됨 -->
+    <section class="tab-panel" data-panel="more">
+      <button class="more-item card" id="themeToggle">
+        <div class="mi-left">
+          <span class="mi-ico" id="themeIcon">☀️</span>
+          <span id="themeLabel">라이트 모드</span>
+        </div>
+        <span class="switch" id="themeSwitch"><span class="thumb"></span></span>
+      </button>
+      <button class="more-item card" data-action="info">
+        <div class="mi-left"><span class="mi-ico ico-blue">ℹ️</span><span>서비스 정보</span></div>
+        <span class="chev">›</span>
+      </button>
+      <button class="more-item card" data-action="contact">
+        <div class="mi-left"><span class="mi-ico ico-pink">✉️</span><span>문의하기</span></div>
+        <span class="chev">↗</span>
+      </button>
+    </section>
+  </main>
+
+  <footer class="app-footer">© 2026 BUSTAGO · 같이타요 · 캡스톤디자인 RISE</footer>
+
+  <!-- 노선 상세 바텀시트 — 노선 카드 클릭 시 표시됨. 핸들 드래그(80px 이상)로 닫기 가능 -->
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet" id="routeSheet" role="dialog" aria-hidden="true">
+    <div class="sheet-handle" id="sheetHandle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title-row">
+        <h2 class="sheet-title" id="sheetRouteName">송정51</h2>
+        <span class="bus-badge" id="sheetBusType">일반</span>
+      </div>
+      <button class="fav-btn" id="sheetFavBtn">
+        <span class="fav-star">☆</span><span class="fav-text">추가</span>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="stops-card">
+        <div class="stops-meta">
+          <span class="bus-ico">🚌</span>
+          <span id="sheetRouteDir">출발 → 도착</span>
+        </div>
+        <div class="stops-track" id="sheetStops"></div>
+      </div>
+
+      <div class="congestion-card">
+        <div class="cong-circle" id="sheetCongCircle">여유</div>
+        <div>
+          <div class="cong-title" id="sheetCongTitle">지금 탑승하세요!</div>
+          <div class="cong-msg" id="sheetCongMsg">대기 인원 적음 · 탑승 가능성 높음</div>
+        </div>
+      </div>
+
+      <div class="forecast-card">
+        <div class="forecast-bars" id="sheetForecast"></div>
+        <div class="forecast-labels" id="sheetForecastLabels"></div>
+      </div>
+
+      <div class="arrival-card">
+        <div class="arrival-head"><span class="bus-ico">🚌</span><span>실시간 도착</span></div>
+        <div class="arrival-row">
+          <div>
+            <span class="arr-name" id="sheetArrName">송정51</span>
+            <span class="arr-dest" id="sheetArrDest">→ 광주역</span>
+          </div>
+          <div class="arr-eta">
+            <div class="arr-min" id="sheetArrMin">3분</div>
+            <div class="arr-stop" id="sheetArrStop">2정류장</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 서비스 정보 바텀시트 — '더보기 → 서비스 정보' 클릭 시 표시됨. 정적 콘텐츠 (버전/소속/팀) 출력에 사용됨 -->
+  <div class="sheet-backdrop" id="infoBackdrop"></div>
+  <div class="sheet sheet-info" id="infoSheet" role="dialog" aria-hidden="true">
+    <div class="sheet-handle" id="infoHandle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title-row"><h2 class="sheet-title">서비스 정보</h2></div>
+    </div>
+    <div class="sheet-body">
+      <div class="info-row"><span>버전</span><b>BUSTAGO v1.0</b></div>
+      <div class="info-row"><span>소속</span><b>광주대학교 캡스톤디자인 RISE</b></div>
+      <div class="info-row"><span>팀</span><b>같이타요</b></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
