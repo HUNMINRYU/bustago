@@ -228,5 +228,45 @@ def station_board(busstop_id: int):
     })
 
 
+@stations_bp.route("/api/line-stations/<int:line_id>")
+@limiter.limit("30 per minute")
+def line_stations(line_id: int):
+    """노선 경유정류소 순서(SEQ) + 노선 메타 — Kakao형 노선 상세."""
+    data = _call_gj_bis("lineStationInfo", {"LINE_ID": line_id})
+    raw = _gj_bis_items(data, "BUSSTOP_LIST") if data else []
+    stops = []
+    for s in raw:
+        try:
+            stops.append({
+                "seq": int(s.get("SEQ") or 0),
+                "busstop_id": int(s.get("BUSSTOP_ID")),
+                "ars_id": s.get("ARS_ID", ""),
+                "name": s.get("BUSSTOP_NAME", ""),
+                "lat": float(s.get("LATITUDE")) if s.get("LATITUDE") else None,
+                "lng": float(s.get("LONGITUDE")) if s.get("LONGITUDE") else None,
+            })
+        except (TypeError, ValueError):
+            continue
+    stops.sort(key=lambda x: x["seq"])
+
+    meta = _line_meta_map().get(line_id, {})
+    return jsonify({
+        "status": "ok",
+        "data": {
+            "line_id": line_id,
+            "line_name": meta.get("line_name", ""),
+            "line_kind": meta.get("line_kind"),
+            "kind_label": meta.get("kind_label", "버스"),
+            "dir_up": meta.get("dir_up", ""),
+            "dir_down": meta.get("dir_down", ""),
+            "first_run": meta.get("first_run", ""),
+            "last_run": meta.get("last_run", ""),
+            "interval": meta.get("interval", ""),
+            "stops": stops,
+        },
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
 # 2026-05-17 단순화 C: _get_current_weather / _parse_kma_items 제거.
 # weather_cache 테이블·KMA API 파서·재사용 헬퍼 모두 정리. RF feature 4개 (hour, prev_*, route_count) 운영.

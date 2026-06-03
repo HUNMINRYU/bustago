@@ -564,3 +564,31 @@ def test_station_board_unknown_busstop_returns_empty(client):
     resp = client.get("/api/station-board/12345")
     assert resp.status_code == 200
     assert resp.json["data"]["routes"] == []
+
+
+@responses.activate
+def test_line_stations_returns_ordered_stops(client, monkeypatch):
+    import backend.routes.stations as st
+    monkeypatch.setattr(st, "_LINE_META_CACHE", {
+        24: {"line_name": "송암47", "line_kind": 2, "kind_label": "간선",
+             "dir_up": "덕남마을 입구", "dir_down": "장등동",
+             "first_run": "05:40", "last_run": "22:30", "interval": "15"},
+    })
+    responses.add(
+        responses.GET, f"{GJ_BIS_BASE_URL}/lineStationInfo",
+        json={"RESPONSE": {"RESULT": {"RESULT_CODE": "SUCCESS"},
+              "BUSSTOP_LIST": {"ITEM": [
+                  {"SEQ": 2, "BUSSTOP_ID": 332, "ARS_ID": "4226", "BUSSTOP_NAME": "도선사",
+                   "LATITUDE": 35.195626, "LONGITUDE": 126.934697},
+                  {"SEQ": 1, "BUSSTOP_ID": 1165, "ARS_ID": "4311", "BUSSTOP_NAME": "장등동",
+                   "LATITUDE": 35.200203, "LONGITUDE": 126.933688},
+              ]}}},
+        status=200,
+    )
+    resp = client.get("/api/line-stations/24")
+    assert resp.status_code == 200
+    d = resp.json["data"]
+    assert d["kind_label"] == "간선"
+    assert d["first_run"] == "05:40"
+    assert [s["name"] for s in d["stops"]] == ["장등동", "도선사"]
+    assert d["stops"][0]["ars_id"] == "4311"
