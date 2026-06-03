@@ -146,6 +146,17 @@ async function loadArrivalAndRunning(busstopId, routeName) {
   return { arrivals: arrivals, runningCount: runningCount };
 }
 
+// 브라우저 전역으로 노출 (app.js가 Data.* 로 호출)
+if (typeof window !== 'undefined') {
+  window.Data = {
+    demoLevel: demoLevel, makeFavId: makeFavId, deriveBusType: deriveBusType,
+    mapRoutesToCards: mapRoutesToCards, mapStations: mapStations,
+    mapArrivalsForRoute: mapArrivalsForRoute, mapPredictsToForecast: mapPredictsToForecast,
+    loadStations: loadStations, loadRoutesForStation: loadRoutesForStation,
+    loadForecast: loadForecast, loadArrivalAndRunning: loadArrivalAndRunning,
+  };
+}
+
 // Node 테스트용 export (브라우저에서는 무시됨)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

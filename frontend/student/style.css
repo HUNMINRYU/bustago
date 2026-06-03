@@ -425,3 +425,14 @@ input { font-family: inherit; }
 }
 .info-row span { color: #94a3b8; }
 .info-row b { color: #f1f5f9; font-weight: 500; }
+
+/* 정류장 검색 결과 / 컨텍스트 칩 */
+.station-ctx { display:flex; align-items:center; gap:8px; margin:4px 0 10px; }
+.station-ctx-btn { background:var(--search-count-bg); color:var(--search-count-fg);
+  border:none; border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; }
+.station-ctx-name { font-weight:700; color:var(--text-primary); }
+.station-list { display:flex; flex-direction:column; gap:8px; }
+.station-item { display:flex; justify-content:space-between; align-items:center;
+  padding:14px 16px; cursor:pointer; }
+.si-name { color:var(--text-primary); font-weight:500; }
+.si-chev { color:var(--text-muted); font-size:18px; }

@@ -20,27 +20,6 @@ const BUS_TYPE = {
   normal:  { label: '일반', color: '#64748b' },
 };
 
-// 바텀시트의 시간대별 막대 그래프 데이터로 사용됨
-// (실제 API 연동 시 fetchPredict() 결과로 대체할 것)
-const FORECAST_HOURS   = [8, 9, 10, 11, 12, 13];
-const FORECAST_LEVELS  = [1, 3, 2, 0, 0, 1];
-const CURRENT_HOUR_IDX = 3;
-
-// 노선 목록 더미 데이터 — API 미연동 상태의 화면 확인용으로 사용됨
-// 실제 운영 시 광주 BIS API 응답으로 교체할 것
-const MOCK_ROUTES = [
-  { id: 'songjeong-51', name: '송정51', from: '송정역',   to: '광주역',     level: 0, type: 'low',
-    stops: ['송정역','공항','운남','월곡','광주역','동구청'], currentStopIndex: 3, etaMin: 3, etaStops: 2 },
-  { id: 'first-18',     name: '첨단18', from: '첨단',     to: '전남대',     level: 2, type: 'normal',
-    stops: ['첨단','첨단2','신용','운암','전남대','후문'],     currentStopIndex: 2, etaMin: 7, etaStops: 4 },
-  { id: 'seat02',       name: '좌석02', from: '광주역',   to: '터미널',     level: 1, type: 'express',
-    stops: ['광주역','충장로','금남로','터미널'],              currentStopIndex: 1, etaMin: 5, etaStops: 3 },
-  { id: 'suwan27',      name: '수완27', from: '수완지구', to: '광천터미널', level: 3, type: 'low',
-    stops: ['수완지구','운남','광천터미널'],                   currentStopIndex: 0, etaMin: 12, etaStops: 6 },
-  { id: 'no160',        name: '160',    from: '송원대',   to: '조선대',     level: 0, type: 'normal',
-    stops: ['송원대','양림','충장로','조선대'],                currentStopIndex: 2, etaMin: 2, etaStops: 1 },
-];
-
 // 바텀시트 닫힘 애니메이션(transform 0.37s)과 동기화 — 재오픈 가드로 사용됨
 const SHEET_ANIM_MS = 370;
 
@@ -50,14 +29,19 @@ const SHEET_ANIM_MS = 370;
 
 // 앱 전역 상태 — 탭/검색어/즐겨찾기/시트/테마 추적용으로 사용됨
 const state = {
-  tab: 'fav',                                                                  // 활성 탭 ID
-  query: '',                                                                   // 검색어
-  favIds: new Set(JSON.parse(localStorage.getItem('bustago_favs') || '[]')),   // 즐겨찾기 id 집합 (localStorage 영속)
-  sheetRoute: null,                                                            // 바텀시트에 표시 중인 노선
-  sheetOpen: false,                                                            // 바텀시트 열림 여부
-  closing: false,                                                              // 닫힘 애니메이션 진행 중 플래그 — 재오픈 가드용
-  reopenTimer: null,                                                           // 닫힘 직후 재오픈 예약 타이머
-  theme: localStorage.getItem('bustago_theme') || 'light',                     // 'light' | 'dark'
+  tab: 'fav',
+  query: '',
+  stations: [],            // 정렬된 정류장 목록
+  busstopMap: {},          // ars_no → gj_busstop_id
+  activeStation: null,     // { ars_no, station_name }
+  routeCards: [],          // 현재 activeStation의 노선 카드 (검색 탭)
+  favs: new Map(JSON.parse(localStorage.getItem('bustago_favs_v2') || '[]')), // id → fav객체
+  sheetRoute: null,
+  sheetOpen: false,
+  closing: false,
+  reopenTimer: null,
+  arrivalTimer: null,      // 시트 도착 30초 갱신
+  theme: localStorage.getItem('bustago_theme') || 'light',
 };
 
 // =============================================================
@@ -78,6 +62,10 @@ const favEmptyEl   = $('favEmpty');
 const routeListEl   = $('routeList');
 const searchInput   = $('searchInput');
 const searchCountEl = $('searchCount');
+const stationListEl  = $('stationList');
+const stationCtxEl    = $('stationCtx');
+const stationCtxBtn   = $('stationCtxBtn');
+const stationCtxName  = $('stationCtxName');
 
 // 노선 상세 바텀시트 요소 — 노선 클릭 시 표시되는 패널/배경/핸들/즐겨찾기 버튼
 const sheetEl         = $('routeSheet');
@@ -97,8 +85,24 @@ const infoHandleEl   = $('infoHandle');
 // 저장된 테마를 즉시 적용하고 초기 화면(즐겨찾기/노선 목록)을 그림
 document.body.setAttribute('data-theme', state.theme);
 updateThemeUI();
-renderFavs();
-renderRouteList();
+
+(async function init() {
+  var r = await Data.loadStations();
+  state.stations = r.stations;
+  state.busstopMap = r.busstopMap;
+  // 기본 정류장: INS01 → 첫 광주 → 첫 번째
+  state.activeStation =
+    state.stations.find(function (s) { return s.ars_no === 'INS01'; }) ||
+    state.stations.find(function (s) { return /^(GATE|GJ)/.test(s.ars_no); }) ||
+    state.stations[0] || null;
+  if (state.activeStation) {
+    state.routeCards = await Data.loadRoutesForStation(
+      state.activeStation.ars_no, state.activeStation.station_name);
+  }
+  renderFavs();
+  renderStationContext();
+  renderSearchResults();
+})();
 
 // =============================================================
 // 탭 전환
@@ -117,40 +121,103 @@ tabsEl.addEventListener('click', (e) => {
 // 검색
 // =============================================================
 
-// 입력 이벤트 → state.query 갱신 후 노선 목록 재렌더링
-searchInput.addEventListener('input', (e) => {
-  state.query = e.target.value;
-  renderRouteList();
-});
-
-// 노선 이름/출발지/도착지를 부분 일치로 필터링하는 데 사용됨
-function filterRoutes() {
-  const q = state.query.trim().toLowerCase();
-  if (!q) return MOCK_ROUTES;
-  return MOCK_ROUTES.filter((r) =>
-    r.name.toLowerCase().includes(q) ||
-    r.from.toLowerCase().includes(q) ||
-    r.to.toLowerCase().includes(q)
-  );
-}
-
 // =============================================================
 // 카드 렌더링
 // =============================================================
 
-// 노선 검색 결과를 다시 그릴 때 사용됨
-function renderRouteList() {
-  const routes = filterRoutes();
-  searchCountEl.textContent = routes.length;
-  routeListEl.innerHTML = routes.map(routeCardHTML).join('');
-  bindRouteCards(routeListEl);
+// 검색 input: 정류장 검색 (activeStation 미선택 상태에서) 또는 노선 필터
+searchInput.addEventListener('input', (e) => {
+  state.query = e.target.value;
+  renderSearchResults();
+});
+
+// 정류장 변경 버튼: 노선 목록 → 정류장 검색 모드로
+stationCtxBtn.addEventListener('click', () => {
+  state.activeStation = null;
+  state.routeCards = [];
+  renderStationContext();
+  renderSearchResults();
+});
+
+// 검색 탭 렌더: activeStation 있으면 노선 카드, 없으면 정류장 목록
+function renderSearchResults() {
+  if (state.activeStation) {
+    stationListEl.innerHTML = '';
+    const q = state.query.trim().toLowerCase();
+    const routes = !q ? state.routeCards : state.routeCards.filter((r) =>
+      r.name.toLowerCase().includes(q) || r.to.toLowerCase().includes(q));
+    searchCountEl.textContent = routes.length;
+    routeListEl.innerHTML = routes.map(routeCardHTML).join('');
+    bindRouteCards(routeListEl);
+  } else {
+    routeListEl.innerHTML = '';
+    const q = state.query.trim().toLowerCase();
+    const list = !q ? state.stations : state.stations.filter((s) =>
+      (s.station_name || '').toLowerCase().includes(q) ||
+      (s.ars_no || '').toLowerCase().includes(q));
+    searchCountEl.textContent = list.length;
+    stationListEl.innerHTML = list.map(stationItemHTML).join('');
+    bindStationItems();
+  }
 }
 
-// 즐겨찾기 탭의 노선 목록을 그릴 때 사용됨 (비어 있으면 empty-state 표시)
-function renderFavs() {
-  const favs = MOCK_ROUTES.filter((r) => state.favIds.has(r.id));
-  favEmptyEl.classList.toggle('show', favs.length === 0);
-  favListEl.innerHTML = favs.map((r) => routeCardHTML(r)).join('');
+// 정류장 컨텍스트 칩 표시/숨김
+function renderStationContext() {
+  if (state.activeStation) {
+    stationCtxEl.hidden = false;
+    stationCtxName.textContent = state.activeStation.station_name;
+  } else {
+    stationCtxEl.hidden = true;
+  }
+}
+
+// 정류장 한 줄 HTML
+function stationItemHTML(s) {
+  return '<div class="station-item card" role="button" tabindex="0" data-ars="' + s.ars_no + '">' +
+    '<span class="si-name">' + s.station_name + '</span>' +
+    '<span class="si-chev">›</span></div>';
+}
+
+// 정류장 선택 → 그 정류장 노선 로드
+function bindStationItems() {
+  stationListEl.querySelectorAll('.station-item').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const s = state.stations.find((x) => x.ars_no === el.dataset.ars);
+      if (!s) return;
+      state.activeStation = s;
+      state.query = '';
+      searchInput.value = '';
+      state.routeCards = await Data.loadRoutesForStation(s.ars_no, s.station_name);
+      renderStationContext();
+      renderSearchResults();
+    });
+  });
+}
+
+// 즐겨찾기 탭: 저장된 (정류장,노선) 쌍을 정류장별 그룹핑하여 실시간 혼잡도 로드
+async function renderFavs() {
+  const favArr = [...state.favs.values()];
+  favEmptyEl.classList.toggle('show', favArr.length === 0);
+  if (favArr.length === 0) { favListEl.innerHTML = ''; return; }
+
+  // 정류장별 그룹핑 → 정류장당 1회 route-recommend
+  const byStation = {};
+  favArr.forEach((f) => {
+    (byStation[f.stationId] = byStation[f.stationId] || { name: f.stationName, favs: [] }).favs.push(f);
+  });
+  const cards = [];
+  for (const sid of Object.keys(byStation)) {
+    const live = await Data.loadRoutesForStation(sid, byStation[sid].name);
+    byStation[sid].favs.forEach((f) => {
+      const match = live.find((c) => c.name === f.routeName);
+      cards.push(match || {  // 매칭 실패 시 데모 레벨로 카드 유지
+        id: f.id, stationId: f.stationId, stationName: f.stationName,
+        name: f.routeName, routeNo: f.routeNo, from: f.stationName, to: '-',
+        level: Data.demoLevel(new Date().getHours()), type: 'normal', recommended: false,
+      });
+    });
+  }
+  favListEl.innerHTML = cards.map(routeCardHTML).join('');
   bindRouteCards(favListEl);
 }
 
@@ -160,7 +227,7 @@ function renderFavs() {
 function routeCardHTML(r) {
   const c = CONGESTION[r.level];
   const t = BUS_TYPE[r.type];
-  const isFav = state.favIds.has(r.id);
+  const isFav = state.favs.has(r.id);
   return `
     <div class="route-card" role="button" tabindex="0" data-id="${r.id}">
       <div class="rc-left">
@@ -185,28 +252,42 @@ function routeCardHTML(r) {
 function bindRouteCards(root) {
   root.querySelectorAll('.route-card').forEach((card) => {
     card.addEventListener('click', (e) => {
-      // 별을 눌렀을 때는 시트가 열리지 않도록 무시
       if (e.target.closest('.rc-fav')) return;
-      const r = MOCK_ROUTES.find((x) => x.id === card.dataset.id);
+      const r = findCardById(card.dataset.id);
       if (r) openRoute(r);
     });
   });
   root.querySelectorAll('.rc-fav').forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      e.stopPropagation();   // 카드 클릭으로 시트가 열리는 것을 방지
-      toggleFav(btn.dataset.fav);
+      e.stopPropagation();
+      const r = findCardById(btn.dataset.fav);
+      if (r) toggleFav(r);
     });
   });
 }
 
+// 현재 화면에 존재하는 카드 객체를 id로 찾음 (검색 결과 또는 즐겨찾기)
+function findCardById(id) {
+  return state.routeCards.find((c) => c.id === id)
+      || [...state.favs.values()].map(favToCardStub).find((c) => c.id === id);
+}
+function favToCardStub(f) {
+  return { id: f.id, stationId: f.stationId, stationName: f.stationName,
+           name: f.routeName, routeNo: f.routeNo, from: f.stationName, to: '-',
+           level: 0, type: 'normal', recommended: false };
+}
+
 // 즐겨찾기 상태를 토글하고 localStorage에 영속화하는 데 사용됨
-function toggleFav(id) {
-  if (state.favIds.has(id)) state.favIds.delete(id);
-  else state.favIds.add(id);
-  localStorage.setItem('bustago_favs', JSON.stringify([...state.favIds]));
+function toggleFav(r) {
+  if (state.favs.has(r.id)) state.favs.delete(r.id);
+  else state.favs.set(r.id, {
+    id: r.id, stationId: r.stationId, stationName: r.stationName,
+    routeName: r.name, routeNo: r.routeNo,
+  });
+  localStorage.setItem('bustago_favs_v2', JSON.stringify([...state.favs]));
   renderFavs();
-  renderRouteList();
-  if (state.sheetRoute && state.sheetRoute.id === id) updateSheetFavBtn();
+  renderSearchResults();
+  if (state.sheetRoute && state.sheetRoute.id === r.id) updateSheetFavBtn();
 }
 
 // =============================================================
@@ -362,13 +443,13 @@ function renderSheet() {
 function updateSheetFavBtn() {
   const r = state.sheetRoute;
   if (!r) return;
-  const on = state.favIds.has(r.id);
+  const on = state.favs.has(r.id);
   sheetFavBtn.classList.toggle('on', on);
   sheetFavBtn.querySelector('.fav-star').textContent = on ? '★' : '☆';
   sheetFavBtn.querySelector('.fav-text').textContent = on ? '즐겨찾기' : '추가';
 }
 sheetFavBtn.addEventListener('click', () => {
-  if (state.sheetRoute) toggleFav(state.sheetRoute.id);
+  if (state.sheetRoute) toggleFav(state.sheetRoute);
 });
 
 // =============================================================
