@@ -1,391 +1,427 @@
-/* BUSTAGO Student PWA - Mobile First */
+/* BUSTAGO Student PWA - Styles
+ * 라이트/다크 모드는 body[data-theme] 속성으로 전환됨
+ * 색상은 CSS 변수(--*)로 토큰화되어 있어 테마 추가/수정에 사용됨
+ */
 
-* {
+/* 라이트 테마 토큰 (기본값) */
+:root {
+  --header-bg: #1976d2;
+  --tab-bg: #1565c0;
+  --tab-active: #2771c5;
+  --page-bg: #f5f7fa;
+  --card-bg: #ffffff;
+  --card-border: transparent;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --search-count-bg: #eff6ff;
+  --search-count-fg: #1d4ed8;
+  --search-input-bg: #ffffff;
+  --search-input-border: #e2e8f0;
+  --sheet-bg: #0f172a;
+  --sheet-card: #1e293b;
+  --sheet-card-border: #334155;
+  --sheet-text: #ffffff;
+  --sheet-sub: #cbd5e1;
+}
+
+/* 다크 테마 토큰 — body[data-theme="dark"]일 때만 적용됨 */
+[data-theme="dark"] {
+  --header-bg: #0f1f42;
+  --tab-bg: #0c1731;
+  --tab-active: #1a253f;
+  --page-bg: #0b1426;
+  --card-bg: #1a2438;
+  --card-border: #243049;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --search-count-bg: #1a2438;
+  --search-count-fg: #93c5fd;
+  --search-input-bg: #1a2438;
+  --search-input-border: #243049;
+}
+
+* { box-sizing: border-box; }
+html, body {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-:root {
-  --primary: #1976D2;
-  --primary-dark: #1565C0;
-  --bg: #F5F5F5;
-  --card-bg: #FFFFFF;
-  --text: #212121;
-  --text-secondary: #757575;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --radius: 12px;
-  --congestion-0: #4CAF50;
-  --congestion-1: #FFC107;
-  --congestion-2: #FF9800;
-  --congestion-3: #F44336;
-  --congestion-bg-0: #E8F5E9;
-  --congestion-bg-1: #FFF8E1;
-  --congestion-bg-2: #FFF3E0;
-  --congestion-bg-3: #FFEBEE;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-               'Noto Sans CJK KR', 'Noto Color Emoji', 'Apple Color Emoji',
-               'Segoe UI Emoji', sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  background: var(--page-bg);
+  color: var(--text-primary);
   min-height: 100vh;
+}
+body { display: flex; flex-direction: column; min-height: 100vh; }
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; }
+
+/* ====================================================
+ * 헤더 + 탭 — 항상 화면 상단에 고정 배치되는 영역
+ * ==================================================== */
+
+/* 상단 'BUSTAGO' 헤더 영역에 사용됨 */
+.app-header {
+  background: var(--header-bg);
+  color: #fff;
+  padding: 24px 16px 16px;
+  text-align: center;
+  transition: background 0.2s;
+}
+.header-sub { color: #bfdbfe; font-size: 13px; }
+[data-theme="dark"] .header-sub { color: #94a3b8; }
+.header-title { font-weight: 700; letter-spacing: 0.3em; margin-top: 2px; font-size: 20px; }
+
+/* 메뉴 탭 바 — 3등분 그리드. .active 클래스로 강조됨 */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--tab-bg);
+  color: #bfdbfe;
+  transition: background 0.2s;
+}
+[data-theme="dark"] .tabs { color: #94a3b8; border-bottom: 1px solid #243049; }
+.tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: inherit;
+  padding: 12px 4px;
   display: flex;
   flex-direction: column;
-}
-
-/* Header */
-.app-header {
-  background: var(--primary);
-  color: white;
-  padding: 20px 16px;
-  text-align: center;
-}
-
-.app-header h1 {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 2px;
-}
-
-.app-header .subtitle {
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
-  opacity: 0.85;
-  margin-top: 4px;
+  transition: background 0.2s, color 0.2s;
 }
-
-/* Main */
-.app-main {
-  flex: 1;
-  padding: 16px;
-  max-width: 480px;
-  margin: 0 auto;
-  width: 100%;
+.tab .tab-ico { width: 16px; height: 16px; }
+.tab.active {
+  background: var(--tab-active);
+  color: #fff;
+  border-bottom-color: #fff;
 }
+[data-theme="dark"] .tab.active { border-bottom-color: #60a5fa; }
 
-/* Card */
+/* ====================================================
+ * 메인 / 카드 공통
+ * ==================================================== */
+
+/* 패널 컨테이너 — .tab-panel.active만 표시됨 */
+.app-main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.tab-panel { display: none; flex-direction: column; gap: 12px; }
+.tab-panel.active { display: flex; }
+
+/* 모든 카드 컴포넌트 공통 외형 — 날씨/노선/더보기 항목 등에서 재사용됨 */
 .card {
   background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
-  margin-bottom: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Station Selector */
-.station-selector label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.station-selector select {
-  width: 100%;
+/* 즐겨찾기 탭 상단의 날씨 요약 카드에 사용됨 (현재는 정적 더미 값) */
+.weather-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 16px;
-  font-size: 16px;
-  border: 2px solid #E0E0E0;
-  border-radius: 8px;
-  background: white;
-  color: var(--text);
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23757575' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  cursor: pointer;
 }
+.weather-left { display: flex; align-items: center; gap: 12px; }
+.weather-ico { font-size: 28px; }
+.weather-temp { color: var(--text-primary); font-size: 16px; }
+.weather-right { display: flex; gap: 20px; text-align: center; }
+.weather-right .v { color: var(--text-primary); font-size: 14px; }
+.weather-right .l { color: var(--text-muted); font-size: 12px; }
 
-.station-selector select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-/* Congestion Display */
-.congestion-display {
-  text-align: center;
-}
-
-.congestion-display h2 {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.congestion-indicator {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.congestion-circle {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s ease;
-}
-
-.congestion-icon {
-  font-size: 40px;
-  margin-bottom: 4px;
-}
-
-.congestion-label {
-  font-size: 20px;
-  font-weight: 700;
-  color: white;
-}
-
-.congestion-message {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* Recommendation */
-.recommendation h2 {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
-.recommendation-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.recommendation-card.board {
-  background: var(--congestion-bg-0);
-  color: var(--congestion-0);
-}
-
-.recommendation-card.wait {
-  background: var(--congestion-bg-3);
-  color: var(--congestion-3);
-}
-
-.recommendation-icon {
-  font-size: 28px;
-}
-
-/* Forecast Bars */
-.forecast h2 {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.forecast-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 160px;
-  padding-top: 8px;
-}
-
-.forecast-bar-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.forecast-bar {
-  width: 100%;
-  min-height: 8px;
-  border-radius: 4px 4px 0 0;
-  transition: height 0.3s ease, background-color 0.3s ease;
-}
-
-.forecast-bar-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  white-space: nowrap;
-}
-
-/* Utility */
-.hidden {
+/* 즐겨찾기 노선이 없을 때 표시되는 안내 영역 — JS에서 .show 클래스 토글로 사용됨 */
+.empty-state {
   display: none;
-}
-
-/* Loading State */
-.loading {
+  flex-direction: column;
+  align-items: center;
+  padding-top: 64px;
   text-align: center;
-  padding: 40px 20px;
-  color: var(--text-secondary);
+}
+.empty-state.show { display: flex; }
+.empty-ico { font-size: 40px; margin-bottom: 8px; }
+.empty-title { color: var(--text-primary); }
+.empty-sub { color: var(--text-muted); margin-top: 4px; font-size: 14px; }
+
+/* ====================================================
+ * 노선 검색
+ * ==================================================== */
+
+/* 검색어 입력 필드에 사용됨 */
+.search-input {
+  background: var(--search-input-bg);
+  border: 1px solid var(--search-input-border);
+  color: var(--text-primary);
+  height: 48px;
+  border-radius: 12px;
+  padding: 0 16px;
+  width: 100%;
+  outline: none;
   font-size: 14px;
 }
-
-.loading::before {
-  content: '';
-  display: block;
-  width: 32px;
-  height: 32px;
-  margin: 0 auto 12px;
-  border: 3px solid #E0E0E0;
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.search-input::placeholder { color: var(--text-muted); }
+/* '검색 결과 N개 노선' 표기 줄에 사용됨 */
+.search-count {
+  background: var(--search-count-bg);
+  color: var(--search-count-fg);
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
 }
+.search-count b { color: var(--search-count-fg); font-weight: 700; }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* 노선 카드 (검색 결과 / 즐겨찾기 공통) — app.js의 routeCardHTML()로 동적 생성됨
+ * route-card는 div + role="button"으로 사용 (내부에 별 버튼 중첩을 허용하기 위함) */
+.route-list, .fav-list { display: flex; flex-direction: column; gap: 8px; }
+.route-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  text-align: left;
+  width: 100%;
 }
+.route-card:active { background: var(--page-bg); }
+.rc-left { display: flex; align-items: center; gap: 12px; }
+.rc-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.rc-name-row { display: flex; align-items: center; gap: 6px; }
+.rc-name { color: var(--text-primary); font-size: 15px; }
+.rc-dir { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+/* 노선 이름 우측의 버스 유형 배지(저상/고속/일반) — 배경색은 JS에서 인라인 지정됨 */
+.bus-badge {
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+/* 노선 카드 우측의 혼잡도 배지 (여유/보통/혼잡/매우혼잡) */
+.cong-badge {
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.rc-right { display: flex; align-items: center; gap: 8px; }
+/* 카드 내부 즐겨찾기 별 — span 요소를 버튼처럼 사용 (.on=등록 / .off=미등록) */
+.rc-fav {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; padding: 4px;
+  font-size: 20px; line-height: 1; cursor: pointer; user-select: none;
+}
+.rc-fav.on { color: #facc15; }
+.rc-fav.off { color: var(--text-muted); }
 
-/* Footer */
+/* ====================================================
+ * 더보기 탭
+ * ==================================================== */
+
+/* 더보기 탭의 행 항목 공통 외형 — 테마 토글 / 서비스 정보 / 문의하기에 사용됨 */
+.more-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  width: 100%;
+}
+.mi-left { display: flex; align-items: center; gap: 12px; color: var(--text-primary); }
+.mi-ico { font-size: 18px; }
+.ico-blue { color: #3b82f6; }
+.ico-pink { color: #f472b6; }
+.chev { color: var(--text-muted); font-size: 18px; }
+/* 다크/라이트 모드 스위치 — body[data-theme="dark"]일 때 thumb가 우측으로 이동함 */
+.switch {
+  position: relative; width: 44px; height: 24px;
+  background: #cbd5e1; border-radius: 999px; transition: background 0.2s;
+  display: inline-block;
+}
+[data-theme="dark"] .switch { background: #3b82f6; }
+.switch .thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; background: #fff; border-radius: 50%;
+  transition: transform 0.2s;
+}
+[data-theme="dark"] .switch .thumb { transform: translateX(20px); }
+
 .app-footer {
   text-align: center;
+  color: var(--text-muted);
   padding: 16px;
   font-size: 12px;
-  color: var(--text-secondary);
 }
 
-/* Route Recommend Cards */
-.route-card { padding: 12px; border-radius: 8px; margin-bottom: 8px; background: #F5F5F5; }
-.route-card.recommended { border-left: 4px solid #4CAF50; background: #F1F8E9; }
-.route-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.route-no { font-weight: 700; font-size: 1rem; }
-.rec-badge { background: #4CAF50; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; }
-.route-dest { font-size: 0.85rem; color: #757575; margin-bottom: 6px; }
-.congestion-badge { display: inline-block; color: white; font-size: 0.8rem; padding: 3px 10px; border-radius: 12px; }
+/* ====================================================
+ * 바텀시트 (노선 상세 + 서비스 정보 공통)
+ *  - .open 클래스로 열림 상태 토글됨
+ *  - transition은 0.37s = JS의 SHEET_ANIM_MS와 동일해야 함
+ * ==================================================== */
 
-/* Arrival Cards (광주 BIS Live) */
-.live-badge {
-  background: #F44336; color: white;
-  font-size: 0.7rem; font-weight: 600;
-  padding: 2px 8px; border-radius: 12px;
-  margin-left: 8px; vertical-align: middle;
-  animation: blink-live 1.5s infinite;
+/* 시트 뒤 어두운 배경 — 클릭하면 시트가 닫힘 */
+.sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+  z-index: 50;
 }
-@keyframes blink-live { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
-.arrival-source {
-  font-size: 0.7rem; color: #9E9E9E;
-  margin-left: 6px; vertical-align: middle; font-weight: 400;
+.sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* 시트 본체 — 화면 하단에서 위로 슬라이드 인 */
+.sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: var(--sheet-bg);
+  color: var(--sheet-text);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  transform: translateY(100%);
+  transition: transform 0.37s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  touch-action: none;
 }
+.sheet.open { transform: translateY(0); }
+/* 시트 상단 드래그 핸들 — JS의 attachDragClose()로 아래 스와이프 닫기 트리거에 사용됨 */
+.sheet-handle {
+  width: 48px; height: 5px;
+  background: #475569;
+  border-radius: 999px;
+  margin: 10px auto 4px;
+  cursor: grab;
+}
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 16px 12px;
+}
+.sheet-title-row { display: flex; align-items: center; gap: 8px; }
+.sheet-title { color: #fff; margin: 0; font-size: 20px; font-weight: 700; }
+.sheet-body {
+  padding: 0 16px 24px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* 시트 헤더 우측의 즐겨찾기 토글 버튼 (.on 클래스로 등록 상태 표시) */
+.fav-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px; border-radius: 999px;
+  background: #1e293b; border: 1px solid #334155;
+  color: #cbd5e1; font-size: 13px;
+}
+.fav-btn.on {
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.4);
+  color: #fde047;
+}
+.fav-star { font-size: 14px; }
+
+/* 시트 내부 — 정류장 진행 트랙
+ *  past=흐림 / current=흰 하이라이트 원 / future=반투명 */
+.stops-card {
+  background: rgba(30, 58, 138, 0.4);
+  border: 1px solid rgba(30, 64, 175, 0.5);
+  border-radius: 16px;
+  padding: 16px;
+}
+.stops-meta { display: flex; align-items: center; gap: 8px; color: #bfdbfe; margin-bottom: 12px; font-size: 13px; }
+.stops-track {
+  display: flex; gap: 4px; padding: 8px 0;
+  overflow-x: auto;
+  justify-content: space-between;
+}
+.stop-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-width: 60px;
+}
+.stop-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: rgba(96, 165, 250, 0.3);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+}
+.stop-dot.past { background: #475569; border: none; }
+.stop-dot.current {
+  width: 20px; height: 20px; background: #fff;
+  box-shadow: 0 0 12px rgba(255,255,255,0.8);
+  border: 4px solid rgba(96, 165, 250, 0.4);
+}
+.stop-name { text-align: center; font-size: 11px; color: rgba(147,197,253,0.5); }
+.stop-name.past { color: #64748b; }
+.stop-name.current { color: #fff; font-weight: 500; }
+
+/* 시트 내부 — 현재 혼잡도 원 + 안내 메시지 카드 */
+.congestion-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex; align-items: center; gap: 16px;
+}
+.cong-circle {
+  width: 80px; height: 80px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+}
+.cong-title { color: #fff; margin-bottom: 4px; font-size: 15px; }
+.cong-msg { color: #94a3b8; font-size: 13px; }
+
+/* 시트 내부 — 시간대별 수직 막대 그래프 카드
+ *  높이는 혼잡도 레벨(0~3)에 비례, 현재 시간대는 .current 클래스로 강조됨 */
+.forecast-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 16px;
+  padding: 16px;
+}
+.forecast-bars {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 8px; height: 112px;
+}
+.fc-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.fc-bar { width: 100%; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+.fc-bar.current { outline: 2px solid #fff; }
+.forecast-labels { display: flex; margin-top: 8px; }
+.fc-label { flex: 1; text-align: center; color: #94a3b8; font-size: 12px; }
+.fc-label.current { color: #4ade80; }
+
+/* 시트 내부 — 실시간 도착 정보 카드 (현재 단일 행, 추후 다중 행 확장 예정) */
 .arrival-card {
-  padding: 12px; border-radius: 8px; margin-bottom: 8px;
-  background: #FAFAFA; border-left: 3px solid #1976D2;
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 16px;
+  padding: 16px;
 }
-.arrival-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.arrival-line {
-  font-weight: 700; font-size: 1rem; color: #1976D2;
-  background: #E3F2FD; padding: 2px 10px; border-radius: 4px;
+.arrival-head { display: flex; align-items: center; gap: 8px; color: #cbd5e1; margin-bottom: 12px; font-size: 14px; }
+.arrival-row {
+  display: flex; align-items: center; justify-content: space-between;
+  border-left: 4px solid #60a5fa; padding-left: 12px;
 }
-.arrival-tag {
-  font-size: 0.7rem; padding: 1px 6px; border-radius: 3px;
-  background: #ECEFF1; color: #546E7A;
+.arr-name { color: #60a5fa; font-weight: 500; }
+.arr-dest { color: #94a3b8; margin-left: 8px; font-size: 13px; }
+.arr-min { color: #4ade80; font-weight: 700; }
+.arr-stop { color: #64748b; font-size: 12px; text-align: right; }
+
+/* 서비스 정보 시트의 항목 행 — '버전 / 소속 / 팀' 같은 라벨-값 쌍에 사용됨 */
+.info-row {
+  background: #1e293b; border: 1px solid #334155;
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-.arrival-tag.imminent {
-  background: #FFEBEE; color: #C62828; font-weight: 600;
-  animation: blink-live 1s infinite;
-}
-.arrival-meta { font-size: 0.8rem; color: #757575; margin-bottom: 6px; }
-.arrival-eta { display: flex; align-items: baseline; gap: 10px; }
-.arrival-min { font-weight: 700; font-size: 1.2rem; }
-.arrival-min.soon { color: #4CAF50; }
-.arrival-min.mid  { color: #FFC107; }
-.arrival-min.far  { color: #757575; }
-.arrival-stop { font-size: 0.75rem; color: #9E9E9E; }
-.arrival-empty {
-  text-align: center; padding: 24px;
-  color: #9E9E9E; font-size: 0.9rem;
-}
-.arrival-footer {
-  text-align: right; font-size: 0.7rem;
-  color: #BDBDBD; margin-top: 8px;
-}
-
-/* Responsive - Tablet+ */
-@media (min-width: 600px) {
-  .app-main {
-    padding: 24px;
-  }
-
-  .card {
-    padding: 24px;
-  }
-
-  .congestion-circle {
-    width: 160px;
-    height: 160px;
-  }
-}
-
-/* Kiosk - 7" LCD (800x480 가로형) — Pi 라즈베리 키오스크 전용 */
-@media (orientation: landscape) and (max-height: 540px) {
-  .app-header { padding: 6px 12px; }
-  .app-header h1 { font-size: 18px; letter-spacing: 1px; }
-  .app-header .subtitle { font-size: 11px; margin-top: 2px; }
-
-  .app-main {
-    padding: 8px 12px;
-    max-width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    align-items: start;
-  }
-
-  .card {
-    padding: 10px 12px;
-    margin-bottom: 0;
-    border-radius: 8px;
-  }
-
-  /* 정류장 선택 카드는 폭 줄임 */
-  .station-selector label { font-size: 11px; margin-bottom: 3px; }
-  .station-selector select {
-    padding: 6px 10px; font-size: 13px;
-    background-position: right 8px center;
-  }
-  .station-selector label:nth-of-type(2) { margin-top: 6px; }
-
-  /* 혼잡도 표시 컴팩트 */
-  .congestion-display h2,
-  .recommendation h2,
-  .forecast h2,
-  #route-recommend-section h2,
-  #arrival-section h2 { font-size: 13px; margin-bottom: 6px; }
-
-  .congestion-circle { width: 80px; height: 80px; }
-  .congestion-icon { font-size: 24px; margin-bottom: 0; }
-  .congestion-label { font-size: 14px; }
-  .congestion-message { font-size: 11px; line-height: 1.3; margin-top: 4px; }
-  .congestion-indicator { margin-bottom: 6px; }
-
-  .recommendation-card { padding: 8px 10px; font-size: 12px; gap: 8px; }
-  .recommendation-icon { font-size: 20px; }
-
-  .forecast-bars { height: 80px; gap: 4px; }
-  .forecast-bar-label { font-size: 9px; margin-top: 3px; }
-
-  .route-card { padding: 6px 8px; margin-bottom: 4px; }
-  .route-no { font-size: 12px; }
-  .route-dest { font-size: 11px; margin-bottom: 3px; }
-  .congestion-badge { font-size: 10px; padding: 2px 6px; }
-  .rec-badge { font-size: 9px; padding: 1px 5px; }
-
-  .arrival-card { padding: 6px 8px; margin-bottom: 4px; }
-  .arrival-line { font-size: 12px; padding: 1px 6px; }
-  .arrival-meta { font-size: 10px; margin-bottom: 3px; }
-  .arrival-min { font-size: 14px; }
-  .arrival-stop { font-size: 9px; }
-  .arrival-tag { font-size: 9px; }
-  .arrival-footer { font-size: 9px; margin-top: 4px; }
-
-  .app-footer { display: none; }
-}
+.info-row span { color: #94a3b8; }
+.info-row b { color: #f1f5f9; font-weight: 500; }

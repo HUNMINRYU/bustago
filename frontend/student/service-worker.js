@@ -1,70 +1,64 @@
-// BUSTAGO Service Worker - Offline Cache
-//
-// CACHE_NAME 갱신 규칙 (2026-05-17 진단 CL-4):
-//   정적 자산(index.html / style.css / app.js / shared/api.js / manifest.json) 변경 시 반드시 버전 증가.
-//   activate 핸들러가 이전 캐시를 자동 삭제하므로 사용자 측에서는 자동 갱신됨.
-//   versions: v1 (초기), v2-demo (2026-05-21 시연 직전 베이스라인)
+// BUSTAGO Service Worker
+// 오프라인 캐시 + 설치형 PWA 동작에 사용됨
+// 정적 자산은 cache-first, 외부 폰트는 network-first 전략으로 처리됨
+// 캐시 갱신 시 CACHE 버전을 올리면 자동으로 이전 캐시가 폐기됨
 
-var CACHE_NAME = 'bustago-v2-demo';
-var CACHE_URLS = [
+const CACHE = 'bustago-v2';
+
+// 오프라인에서도 동작해야 하는 핵심 자산 목록 — install 시 사전 캐시됨
+const ASSETS = [
   'index.html',
   'style.css',
   'app.js',
+  'data.js',
   '../shared/api.js',
-  'manifest.json'
+  'manifest.json',
 ];
 
-// Install: cache static assets
-self.addEventListener('install', function (event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(CACHE_URLS);
-    })
-  );
+// install — 핵심 자산을 미리 캐시하는 데 사용됨
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-// Activate: clean old caches
-self.addEventListener('activate', function (event) {
-  event.waitUntil(
-    caches.keys().then(function (names) {
-      return Promise.all(
-        names.filter(function (name) { return name !== CACHE_NAME; })
-             .map(function (name) { return caches.delete(name); })
-      );
-    })
+// activate — 이전 버전 캐시를 정리하는 데 사용됨
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
 
-// Fetch: network first, cache fallback
-self.addEventListener('fetch', function (event) {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') return;
+// fetch — 모든 GET 요청을 가로채 캐시/네트워크 전략을 선택하는 데 사용됨
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
 
-  // For API calls: network only (don't cache dynamic data)
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(function () {
-        return new Response(
-          JSON.stringify({ status: 'error', message: 'offline' }),
-          { headers: { 'Content-Type': 'application/json' } }
-        );
-      })
+  // 폰트/외부 리소스: network-first
+  if (req.url.startsWith('https://fonts.')) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+        return res;
+      }).catch(() => caches.match(req))
     );
     return;
   }
 
-  // For static assets: network first, fallback to cache
-  event.respondWith(
-    fetch(event.request).then(function (response) {
-      var clone = response.clone();
-      caches.open(CACHE_NAME).then(function (cache) {
-        cache.put(event.request, clone);
-      });
-      return response;
-    }).catch(function () {
-      return caches.match(event.request);
-    })
+  // 정적 자산: cache-first
+  e.respondWith(
+    caches.match(req).then((cached) =>
+      cached ||
+      fetch(req).then((res) => {
+        if (res.ok && new URL(req.url).origin === location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => cached)
+    )
   );
 });
