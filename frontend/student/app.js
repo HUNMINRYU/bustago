@@ -346,6 +346,7 @@ function closeSheet() {
   sheetEl.classList.remove('open');
   sheetBackdropEl.classList.remove('open');
   sheetEl.setAttribute('aria-hidden', 'true');
+  if (state.arrivalTimer) { clearTimeout(state.arrivalTimer); state.arrivalTimer = null; }
   state.closing = true;
   setTimeout(() => { state.closing = false; }, SHEET_ANIM_MS);
 }
@@ -397,60 +398,91 @@ function attachDragClose(panel, handle, onClose) {
   });
 }
 
-// 시트 내부의 모든 동적 영역을 현재 state.sheetRoute 기준으로 다시 채우는 데 사용됨
+// 시트 기본 정보(즉시) + 라이브 데이터(비동기) 렌더
 function renderSheet() {
   const r = state.sheetRoute;
   if (!r) return;
   const c = CONGESTION[r.level];
   const t = BUS_TYPE[r.type];
 
-  // 헤더: 노선명 + 버스 유형 배지
   $('sheetRouteName').textContent = r.name;
   const tb = $('sheetBusType');
-  tb.textContent = t.label;
-  tb.style.background = t.color;
-
-  // 출발 → 도착 부 라벨
+  tb.textContent = t.label; tb.style.background = t.color;
   $('sheetRouteDir').textContent = `${r.from} → ${r.to}`;
 
-  // 정류장 진행 트랙 — past/current/future 클래스로 시각 상태 구분
-  $('sheetStops').innerHTML = r.stops.map((s, idx) => {
-    const cls = idx < r.currentStopIndex ? 'past' : (idx === r.currentStopIndex ? 'current' : 'future');
-    return `
-      <div class="stop-item">
-        <div class="stop-dot ${cls}"></div>
-        <span class="stop-name ${cls}">${s}</span>
-      </div>
-    `;
+  // 출발→도착 2점 트랙
+  $('sheetStops').innerHTML = [r.from, r.to].map((s, idx) => {
+    const cls = idx === 0 ? 'past' : 'future';
+    return `<div class="stop-item"><div class="stop-dot ${cls}"></div>` +
+           `<span class="stop-name ${cls}">${esc(s)}</span></div>`;
   }).join('');
 
-  // 현재 혼잡도 원 + 안내 문구
+  // 현재 혼잡도 원
   const cc = $('sheetCongCircle');
-  cc.textContent = c.label;
-  cc.style.background = c.color;
+  cc.textContent = c.label; cc.style.background = c.color;
   $('sheetCongTitle').textContent = c.title;
-  $('sheetCongMsg').textContent   = c.msg;
+  $('sheetCongMsg').textContent = c.msg;
 
-  // 시간대별 수직 막대 그래프 — 현재 시간(CURRENT_HOUR_IDX)은 흰 outline + 글로우로 강조됨
-  $('sheetForecast').innerHTML = FORECAST_LEVELS.map((lvl, i) => {
-    const info  = CONGESTION[lvl];
-    const h     = ((lvl + 1) / 4) * 100;  // 레벨(0~3) → 높이 비율(25~100%)
-    const isNow = i === CURRENT_HOUR_IDX;
-    return `<div class="fc-col">
-      <div class="fc-bar ${isNow ? 'current' : ''}" style="height:${h}%;background:${info.color};${isNow ? `box-shadow:0 0 12px ${info.color}80;` : ''}"></div>
-    </div>`;
+  // 운행 칩/예측/도착은 로딩 표시 후 비동기 채움
+  $('sheetRunning').hidden = true;
+  $('sheetForecast').innerHTML = '';
+  $('sheetForecastLabels').innerHTML = '';
+  updateSheetFavBtn();
+
+  loadSheetLive(r);
+}
+
+// 시트 라이브 데이터: 예측 막대 + 도착 + 운행 대수. 30초 도착 갱신.
+async function loadSheetLive(r) {
+  // 시간대별 예측 (정류장 단위)
+  const fc = await Data.loadForecast(r.stationId);
+  const nowIdx = 0; // 첫 막대가 현재 시각
+  $('sheetForecast').innerHTML = fc.levels.map((lvl, i) => {
+    const info = CONGESTION[lvl];
+    const h = ((lvl + 1) / 4) * 100;
+    const isNow = i === nowIdx;
+    return `<div class="fc-col"><div class="fc-bar ${isNow ? 'current' : ''}" ` +
+      `style="height:${h}%;background:${info.color};${isNow ? `box-shadow:0 0 12px ${info.color}80;` : ''}"></div></div>`;
   }).join('');
-  $('sheetForecastLabels').innerHTML = FORECAST_HOURS.map((h, i) =>
-    `<span class="fc-label ${i === CURRENT_HOUR_IDX ? 'current' : ''}">${h}시${i === CURRENT_HOUR_IDX ? ' ←' : ''}</span>`
+  $('sheetForecastLabels').innerHTML = fc.hours.map((h, i) =>
+    `<span class="fc-label ${i === nowIdx ? 'current' : ''}">${h}시${i === nowIdx ? ' ←' : ''}</span>`
   ).join('');
 
-  // 실시간 도착 행 — 추후 광주 BIS API 연동 시 다중 행으로 확장 예정
-  $('sheetArrName').textContent = r.name;
-  $('sheetArrDest').textContent = `→ ${r.to}`;
-  $('sheetArrMin').textContent  = `${r.etaMin}분`;
-  $('sheetArrStop').textContent = `${r.etaStops}정류장`;
+  await refreshSheetArrival(r);  // 도착 + 운행 + 타이머
+}
 
-  updateSheetFavBtn();
+// 도착/운행 갱신 (30초 주기). 시트가 닫히거나 다른 노선이면 중단.
+async function refreshSheetArrival(r) {
+  if (!state.sheetOpen || !state.sheetRoute || state.sheetRoute.id !== r.id) return;
+  const busstopId = state.busstopMap[r.stationId];
+  const res = await Data.loadArrivalAndRunning(busstopId, r.name);
+
+  // 운행 대수 칩
+  const pill = $('sheetRunning');
+  if (res.runningCount != null) {
+    pill.textContent = `운행 중 ${res.runningCount}대`;
+    pill.hidden = false;
+  } else {
+    pill.hidden = true;
+  }
+
+  // 첫 도착을 헤더 도착 카드에 반영
+  if (res.arrivals.length) {
+    const a = res.arrivals[0];
+    $('sheetArrName').textContent = r.name;
+    $('sheetArrDest').textContent = `→ ${a.dirEnd || r.to}`;
+    $('sheetArrMin').textContent = `${a.min}분`;
+    $('sheetArrStop').textContent = `${a.stops}정류장`;
+  } else {
+    $('sheetArrName').textContent = r.name;
+    $('sheetArrDest').textContent = `→ ${r.to}`;
+    $('sheetArrMin').textContent = '정보 없음';
+    $('sheetArrStop').textContent = '';
+  }
+
+  // 30초 후 재갱신 예약
+  if (state.arrivalTimer) clearTimeout(state.arrivalTimer);
+  state.arrivalTimer = setTimeout(() => refreshSheetArrival(r), 30000);
 }
 
 // 시트 헤더의 즐겨찾기 버튼(★ / ☆) 시각 상태를 동기화하는 데 사용됨

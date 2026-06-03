@@ -436,3 +436,9 @@ input { font-family: inherit; }
   padding:14px 16px; cursor:pointer; }
 .si-name { color:var(--text-primary); font-weight:500; }
 .si-chev { color:var(--text-muted); font-size:18px; }
+
+/* 시트 운행 대수 라이브 칩 */
+.running-pill { margin-left:auto; background:#22c55e; color:#fff;
+  border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; }
+/* 2점 트랙은 양끝 정렬 */
+.stops-track-2 { justify-content:space-between; }
