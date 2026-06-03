@@ -67,6 +67,38 @@ def _gj_bis_items(data: dict, list_key: str) -> list:
 
 # 광주대 버스정류소 — 단일 진실원 (2026-05-17 클린 아키텍처 정합화)
 from backend.seeds.gj_constants import GJ_BUSSTOPS as GJ_STOPS
+from backend.seeds.gj_constants import kind_label
+
+# lineInfo는 120개 고정 — 프로세스 1회 로드 후 메모리 캐시 (line_id → 메타 dict)
+_LINE_META_CACHE = None
+
+
+def _line_meta_map() -> dict:
+    """line_id(int) → {line_name, line_kind, kind_label, dir_up, dir_down, first_run, last_run, interval}."""
+    global _LINE_META_CACHE
+    if _LINE_META_CACHE is not None:
+        return _LINE_META_CACHE
+    data = _call_gj_bis("lineInfo")
+    out = {}
+    if data:
+        for it in _gj_bis_items(data, "LINE_LIST"):
+            try:
+                lid = int(it.get("LINE_ID"))
+            except (TypeError, ValueError):
+                continue
+            kind = it.get("LINE_KIND")
+            out[lid] = {
+                "line_name": it.get("LINE_NAME", ""),
+                "line_kind": kind,
+                "kind_label": kind_label(kind),
+                "dir_up": it.get("DIR_UP_NAME", ""),
+                "dir_down": it.get("DIR_DOWN_NAME", ""),
+                "first_run": it.get("FIRST_RUN_TIME", ""),
+                "last_run": it.get("LAST_RUN_TIME", ""),
+                "interval": it.get("RUN_INTERVAL", ""),
+            }
+    _LINE_META_CACHE = out
+    return out
 
 
 @stations_bp.route("/api/arrive/<int:busstop_id>")

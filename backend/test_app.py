@@ -520,3 +520,13 @@ def test_recent_rejects_non_demo_station(client):
     """INS01 호출 → 400."""
     resp = client.get("/api/crowd-count/recent?station_id=INS01&limit=5")
     assert resp.status_code == 400
+
+
+def test_kind_label_maps_known_codes():
+    from backend.seeds.gj_constants import kind_label
+    assert kind_label(1) == "급행"
+    assert kind_label(2) == "간선"
+    assert kind_label(3) == "지선"
+    assert kind_label(4) == "농어촌"
+    assert kind_label("3") == "지선"   # 문자열도 허용
+    assert kind_label(None) == "버스"  # 폴백

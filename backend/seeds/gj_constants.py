@@ -24,3 +24,17 @@ GJ_BUSSTOPS = [
     {"name": "광주대 금호아파트방면 (3229)", "busstop_id": 80,   "ars_no": "GJ3229"},
     {"name": "광주대입구 (3228)",            "busstop_id": 3219, "ars_no": "GJ3228"},
 ]
+
+# 광주 BIS LINE_KIND 코드 → 한글 라벨 (실측 2026-06-04: 1급행/2간선/3지선/4농어촌)
+LINE_KIND_LABELS = {1: "급행", 2: "간선", 3: "지선", 4: "농어촌"}
+
+
+def kind_label(line_kind) -> str:
+    try:
+        return LINE_KIND_LABELS.get(int(line_kind), "버스")
+    except (TypeError, ValueError):
+        return "버스"
+
+
+# 정류장 보드 대상 BIS 정류소 (busstop_id → 방면 라벨)
+STATION_BOARD_TARGETS = {80: "금호타운아파트 방향", 1981: "구암 방향"}
