@@ -46,11 +46,6 @@ WEATHER_API_URL = os.getenv(
 GJ_BIS_API_KEY = os.getenv("GJ_BIS_API_KEY", "")
 GJ_BIS_BASE_URL = os.getenv("GJ_BIS_BASE_URL", "https://apis.data.go.kr/6290000/gj_bis")
 
-# 카카오 지도 JavaScript 키 (운영 대시보드 전용 — /api/public-config로 프론트에 전달).
-# 빈 값이면 대시보드 지도 자리에 "키 필요" 안내 박스가 뜸 (화면은 안 깨짐).
-# 카카오 JS 키는 브라우저 노출이 정상이며, 보안은 카카오 콘솔의 도메인 화이트리스트로 한다.
-KAKAO_MAP_APP_KEY = os.getenv("KAKAO_MAP_APP_KEY", "")
-
 
 def _warn_missing_keys() -> None:
     """비밀 키 누락 시 명시적 경고. 시작은 막지 않음 (테스트/CI 환경 대응)."""

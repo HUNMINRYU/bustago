@@ -14,7 +14,7 @@ if PROJECT_ROOT not in sys.path:
 from datetime import datetime
 from flask import Flask, jsonify, send_from_directory, abort
 from flask_cors import CORS
-from backend.config import DEBUG, PORT, KAKAO_MAP_APP_KEY
+from backend.config import DEBUG, PORT
 from backend.models.db import init_db
 from backend.extensions import limiter
 from backend.routes.congestion import congestion_bp  # 2026-05-17 단순화 D: predict + recommend 통합
@@ -60,15 +60,6 @@ def create_app():
     @app.route("/api/health")
     def health():
         return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
-
-    # 프론트 공개 설정 — 카카오 지도 키 등 브라우저가 필요로 하는 비밀-아닌 값 전달.
-    # (카카오 JS 키는 브라우저 노출이 정상. 진짜 방어선은 카카오 콘솔 도메인 화이트리스트.)
-    @app.route("/api/public-config")
-    def public_config():
-        return jsonify({
-            "status": "ok",
-            "data": {"kakao_map_app_key": KAKAO_MAP_APP_KEY},
-        })
 
     # ─── Frontend 정적 파일 서빙 ───────────────────────────────────────────────
     # Pi 키오스크 / 노트북 브라우저가 같은 포트(5000)로 PWA·Admin·shared 접근.

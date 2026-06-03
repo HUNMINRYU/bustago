@@ -23,13 +23,6 @@ def test_health_check(client):
     assert resp.status_code == 200
     assert resp.json["status"] == "ok"
 
-def test_public_config_exposes_kakao_key_field(client):
-    """프론트 공개 설정에 kakao_map_app_key 필드가 포함됨 (빈 값이라도 키 존재)"""
-    resp = client.get("/api/public-config")
-    assert resp.status_code == 200
-    assert resp.json["status"] == "ok"
-    assert "kakao_map_app_key" in resp.json["data"]
-
 def test_predict_endpoint_missing_args(client):
     """필수 파라미터 누락 시 400 에러 확인"""
     resp = client.get("/api/predict")
