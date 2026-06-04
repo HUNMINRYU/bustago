@@ -126,3 +126,50 @@ button { font: inherit; }
   body { overflow: auto; }
   .kiosk-shell { height: auto; min-height: 100vh; }
 }
+
+@media (max-height: 550px) {
+  .status-panel {
+    padding: 16px;
+    gap: 12px;
+  }
+  .brand span {
+    font-size: 14px;
+  }
+  .brand b {
+    font-size: 24px;
+    margin-top: 0px;
+  }
+  .station-btn {
+    min-height: 40px;
+    font-size: 14px;
+    padding: 0 12px;
+  }
+  .metric-primary {
+    padding: 12px;
+  }
+  .metric-label {
+    font-size: 20px;
+  }
+  .metric-sub {
+    font-size: 14px;
+    margin-top: 6px;
+  }
+  .metric-primary strong {
+    font-size: 80px;
+    margin-top: 2px;
+  }
+  .metric-meta {
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .metric-row div {
+    padding: 10px;
+  }
+  .metric-row span {
+    font-size: 14px;
+  }
+  .metric-row b {
+    font-size: 24px;
+    margin-top: 4px;
+  }
+}

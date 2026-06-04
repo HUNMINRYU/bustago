@@ -120,7 +120,7 @@ ExecStart=/usr/bin/chromium \
     --disable-session-crashed-bubble \
     --disable-cache \
     --disk-cache-dir=/tmp/chromium-kiosk \
-    http://172.30.1.75:5000/student/index.html
+    http://172.30.1.75:5000/kiosk/
 Restart=always
 RestartSec=5
 
